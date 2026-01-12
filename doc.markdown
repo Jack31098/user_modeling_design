@@ -96,7 +96,7 @@ User Context $Q$: Static global context vector (e.g., output from Q-Former), $Q 
 The process is divided into a shared Affinity Computation, followed by divergent branches for Training (Differentiable) and Inference (Beam Search).
 
 3.1 Routing Block Logic Flow
-![Routing Block Logic Flow]([https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/routing_block.png])
+![Routing Block Logic Flow](https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/routing_block.png)
 
 3.2 Step 1: Context Fusion & Affinity Scoring
 
