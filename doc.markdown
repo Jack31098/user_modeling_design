@@ -69,8 +69,98 @@ This chapter outlines the evolution of this static retrieval model, from basic i
 
 ### 3.1 User Tower Backbone: Static Q-Former
 
-To be populated.
 (This section defines the core User Encoder architecture shared by both retrieval approaches. It details the Q-Former structure used to extract a static profile from long-term history and the Encoder-Decoder pre-training strategy).
+
+```mermaid
+graph TB
+    %% ============ Styles Definition ============
+    classDef long_sequence fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef short_query fill:#d1c4e9,stroke:#512da8,stroke-width:2px;
+    classDef mechanism_box fill:#fff3e0,stroke:#e65100,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef transformer_layer fill:#f3e5f5,stroke:#4a148c,stroke-width:3px;
+    classDef output_state fill:#fff,stroke:#4a148c,stroke-width:2px;
+    classDef task_head fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef complexity_note fill:#212121,stroke:#000,stroke-width:1px,color:#fff;
+
+    subgraph Phase1_Architecture ["Phase 1: Q-Former Pre-training (The 'Speedy' Encoder)"]
+        direction TB
+
+        %% ============ 1. Asymmetric Inputs ============
+        subgraph Input_Layer [Input Layer: Asymmetric Context]
+            direction LR
+            
+            %% Long Sequence Input
+            ItemSeq["Long User History Sequence (N=1024+)<br/>(Fixed Pretrained Item Embeddings)"]:::long_sequence
+            
+            %% Short Query Input
+            QueryTokens["Learnable Query Tokens (M=32)<br/>(Latent Interest Slots)"]:::short_query
+        end
+
+        %% ============ 2. The Core Mechanism ============
+        subgraph QFormer_Block [Q-Former Interaction Block]
+            direction TB
+            
+            %% Visualizing the Efficiency Secret
+            subgraph Attention_Mechanism ["Efficiency Core: Cross-Attention Only"]
+                direction TB
+                
+                note_speed["🚀 Speed Advantage:<br/>No Item-to-Item Self-Attention.<br/>Complexity is Linear O(N), not Quadratic O(N²)."]:::complexity_note
+
+                CrossAttn(("&times; Cross-Attention &times;<br/>Queries attend to Items")):::mechanism_box
+                SelfAttn(("Query Self-Attention<br/>(Queries talk to each other)")):::mechanism_box
+            end
+            
+            %% The Flow
+            UpdatedQueries["Updated Query States<br/>(Compressed User Profile)"]:::output_state
+        end
+
+        %% Connections demonstrating flow
+        ItemSeq -- "Acts as Keys/Values (K,V)" --> CrossAttn
+        QueryTokens -- "Acts as Queries (Q)" --> CrossAttn
+        QueryTokens --> SelfAttn
+        
+        CrossAttn --> UpdatedQueries
+        SelfAttn --> UpdatedQueries
+
+        %% ============ 3. Task Heads ============
+        subgraph Heads [Pre-training Objectives]
+            direction LR
+            Head_ITC["Task A: Global Contrastive Loss (ITC)<br/>(Align User Profile with Future Item)"]:::task_head
+            Head_ITM["Task B: Masked Reconstruction (LM)<br/>(Regenerate masked history from Queries)"]:::task_head
+        end
+
+        UpdatedQueries --> Head_ITC
+        UpdatedQueries --> Head_ITM
+    end
+
+    %% ============ Styling Tweaks ============
+    %% 强制 Item 序列看起来很长
+    style ItemSeq width:600px
+    %% 强制 Query 序列看起来很短
+    style QueryTokens width:150px
+```
+
+#### 3.1.1 Overview: Decoupling Scale from Cost
+
+To process long-term user history (e.g., $N=1024+$ items) without incurring the quadratic cost $O(N^2)$ of standard Transformers, we adopt a **Querying Transformer (Q-Former)** architecture. 
+
+Unlike standard encoders that perform self-attention over the entire sequence, Q-Former utilizes a small set of **Learnable Query Tokens** ($M=32$) to query the long user history.
+
+*   **Asymmetric Attention**: The queries attend to the user history via cross-attention, but the history items do not attend to each other.
+*   **Linear Complexity**: The computational cost is reduced to $O(N \cdot M)$, where $M \ll N$. This allows us to scale to sequence lengths of 10,000+ with minimal latency impact.
+*   **Information Bottleneck**: The $M$ query tokens act as an information bottleneck, forcing the model to distill the most relevant user interests into a compact latent representation.
+
+#### 3.1.2 Pre-training Strategy: Encoder-Decoder
+
+The User Tower is pre-trained using a multi-task objective designed to ensure both discriminative power (for retrieval) and generative understanding (for profile completeness).
+
+**Task A: Image-Text Contrastive Loss (ITC)**
+*   **Objective**: Aligns the user profile (Query Tokens) with the representation of the positive future item (target).
+*   **Mechanism**: A contrastive loss maximizes the similarity between the user's updated query tokens and the target item embedding, while pushing away negatives. This directly optimizes for the **Action Alignment** principle.
+
+**Task B: Masked Modeling (Reconstruction)**
+*   **Objective**: Ensures the compressed query tokens retain all necessary information from the input history.
+*   **Mechanism**: We randomly mask a percentage of the input history items. A lightweight decoder then attempts to reconstruct the missing items solely from the Q-Former's output tokens. This prevents the model from overfitting to easy patterns and encourages a robust, holistic understanding of user behavior.
 
 ### 3.2 Retrieval Approach A: Set Transformer (The Standard)
 
@@ -86,8 +176,6 @@ This section details the proposed advanced retrieval head, which replaces the st
 The Routing Block at layer $l$ functions as a conditional residual generator operating within a Beam Search framework. It takes a set of active beam paths, selects the optimal residual vector from a learnable codebook based on the user context and current accumulation, and updates the path state.
 
 **High-Level Architecture**
-
-The overall architecture employs a deep stack of routing blocks sharing global codebooks, terminating in a standard ANN index.
 
 ```mermaid
 graph LR
@@ -201,21 +289,21 @@ To allow gradient backpropagation through the discrete selection, we employ the 
 
 We perform exact selection and pruning to maintain the top $B$ best global paths.
 
-**Candidate Expansion**
+*   **Candidate Expansion**
 
-$$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
+    $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
 
-**Pruning (Top-K)**
+*   **Pruning (Top-K)**
 
-$$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} ) $$
+    $$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} ) $$
 
-**Hard Residual Extraction**
+*   **Hard Residual Extraction**
 
-For each selected candidate corresponding to parent path $k^{\ast}$ and code index $j^{\ast}$:
+    For each selected candidate corresponding to parent path $k^{\ast}$ and code index $j^{\ast}$:
 
-$$r_{new} = c_{j^{\ast}}$$
-$$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
-$$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
+    $$r_{new} = c_{j^{\ast}}$$
+    $$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
+    $$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
 
 #### 3.3.4 Output Normalization
 
