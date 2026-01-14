@@ -164,17 +164,17 @@ The User Tower is pre-trained using a multi-task objective designed to ensure bo
 
 #### 3.1.3 Theoretical Justification: The "Differentiation" Strategy
 
-A critical challenge in single-vector models (like Pinformer) is the conflict between **ITC (Discriminative)** and **LM (Generative)** objectives.
-*   **ITC pushes for Selectivity**: It forces the representation to discard historical details to align tightly with the immediate future item (for retrieval sharpness).
-*   **LM pushes for Preservation**: It forces the representation to retain all historical details to reconstruct the past (for profile completeness).
+A critical challenge in single-vector models (like Pinformer) is the conflict between the objectives of **Task A (ITC)** and **Task B (Masked Modeling)**.
+*   **Task A (ITC)** pushes for **Selectivity**: It forces the representation to discard historical details to align tightly with the immediate future item (for retrieval sharpness).
+*   **Task B (Masked Modeling)** pushes for **Preservation**: It forces the representation to retain all historical details to reconstruct the past (for profile completeness).
 
 When compressed into a single vector, these opposing gradients lead to a **"Blurred Average"** that is neither sharp nor complete.
 
 **Solution: Sparsity in Set Space**
 By using a set of $M$ tokens, Q-Former allows these objectives to be satisfied **orthogonally across different tokens**, utilizing the "Soft Sparsity" of the attention mechanism:
-1.  **Specialization**: The LM loss acts as a **Diversity Regularizer**, penalizing "Mode Collapse" (where all tokens learn the same recent interest). It forces specific tokens to specialize in encoding long-tail history (which ITC would otherwise discard).
-2.  **Selective Activation**: The ITC loss then tunes specific tokens to align with potential future interests.
-3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ may capture "Recent Shoes" (High ITC utility), while $Token_{B}$ captures "Vintage Watches" (High LM utility).
+1.  **Specialization via Task B**: The Masked Modeling loss acts as a **Diversity Regularizer**, penalizing "Mode Collapse" (where all tokens learn the same recent interest). It forces specific tokens to specialize in encoding long-tail history (which Task A would otherwise discard).
+2.  **Alignment via Task A**: The ITC loss then tunes specific tokens to align with potential future interests.
+3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ may capture "Recent Shoes" (High Task A utility), while $Token_{B}$ captures "Vintage Watches" (High Task B utility).
 
 ### 3.2 Retrieval Approach A: Set Transformer (The Standard)
 
