@@ -203,12 +203,17 @@ To allow gradient backpropagation through the discrete selection, we employ the 
 We perform exact selection and pruning to maintain the top $B$ best global paths.
 
 *   **Candidate Expansion**:
+
     $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
+
 *   **Pruning (Top-K)**:
+
     $$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} )$$
-*   **Hard Residual Extraction**: For each selected candidate corresponding to parent path $k^*$ and code index $j^*$:
-    $$r_{new} = c_{j^*}$$
-    $$v_{new}^{(l)} = v_{k^*}^{(l-1)} + r_{new}$$
+
+*   **Hard Residual Extraction**: For each selected candidate corresponding to parent path $k^\ast$ and code index $j^\ast$:
+
+    $$r_{new} = c_{j^\ast}$$
+    $$v_{new}^{(l)} = v_{k^\ast}^{(l-1)} + r_{new}$$
     $$S_{new}^{(l)} = \text{Score}_{k^\ast, j^\ast}$$
 
 #### 3.4.4 Output Normalization
@@ -224,10 +229,13 @@ The loss function optimizes the final vector representation while ensuring codeb
 $$\mathcal{L}_{total} = \mathcal{L}_{NCE} + \alpha \mathcal{L}_{Align} + \beta \mathcal{L}_{Balance}$$
 
 **InfoNCE Loss (Retrieval):**
+
 $$\mathcal{L}_{NCE} = -\log \frac{\exp(\tilde{q} \cdot i^+ / \tau_{nce})}{\sum_{i^-} \exp(\tilde{q} \cdot i^- / \tau_{nce})}$$
 
 **Geometric Alignment Loss:**
+
 $$\mathcal{L}_{Align} = \| v^{(l)} - i^+ \|_2^2$$
 
 **Load Balancing Loss:**
+
 $$\mathcal{L}_{Balance} = \sum_{j=1}^{M} \bar{\pi}_j \log \bar{\pi}_j$$
