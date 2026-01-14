@@ -181,7 +181,7 @@ $$r_{new} = c_{j^*}$$
 
 $$v_{new}^{(l)} = v_{k^*}^{(l-1)} + r_{new}$$
 
-$$S_{new}^{(l)} = \text{Score}_{k^*, j^*}$$
+$$S_{new}^{(l)} = \text{Score}_{k^\ast, j^\ast}$$
 
 3.4.4 Output Normalization
 
@@ -355,7 +355,7 @@ $$r_{new} = c_{j^*}$$
 
 $$v_{new}^{(l)} = v_{k^*}^{(l-1)} + r_{new}$$
 
-$$S_{new}^{(l)} = \text{Score}_{k^*, j^*}$$
+$$S_{new}^{(l)} = \text{Score}_{k^\ast, j^\ast}$$
 
 4. Output Normalization
 
