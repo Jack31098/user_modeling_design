@@ -454,7 +454,11 @@ $$\mathcal{L}_{Balance} = \sum_{j=1}^{M} \bar{\pi}_{j} \log \bar{\pi}_{j}$$
 
 ## 4. Dynamic Sequence Modeling: Generative Action Transformer
 
-While Chapter 3 addressed the stable user profile, this chapter introduces the dynamic layer capable of modeling real-time intent shifts and granular user control.
+While Chapter 3 addressed the stable user profile using a static retriever, this chapter introduces the **Dynamic Generative Layer** designed to fully realize the "North Star" principles outlined in Chapter 2:
+
+*   **Sharpness via Generative Modeling**: By predicting the next item token-by-token (rather than a single fuzzy dot product), we force the model to make sharp, multi-modal decisions.
+*   **Action Alignment via Action Tokens**: We explicitly model user intent (Click vs. Skip) as first-class tokens, ensuring the retrieval is aligned with business goals (CTR/CVR).
+*   **Controllability via Prompting**: The generative paradigm allows us to "prompt" the system with control tokens (e.g., `[EXPLORE]`, `[RE-BUY]`) to steer retrieval dynamically.
 
 ```mermaid
 graph LR
