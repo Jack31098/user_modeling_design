@@ -186,6 +186,88 @@ The Q-Former outputs a set of $M$ diverse tokens $Q_{out} = \{q_1, \dots, q_M\}$
 **Architecture: Set Transformer + Attention Pooling**
 We employ a Set Transformer layer followed by an Attention Pooling mechanism (using a learnable `[CLS]` token or weighted sum) rather than simple Mean Pooling.
 
+```mermaid
+graph TB
+    %% ============ Styles Definition ============
+    classDef frozen_block fill:#e0f7fa,stroke:#006064,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef trainable_block fill:#fff9c4,stroke:#fbc02d,stroke-width:3px;
+    classDef vector_node fill:#fff,stroke:#333,stroke-width:2px;
+    classDef loss_node fill:#ffccbc,stroke:#d84315,stroke-width:2px;
+    
+    subgraph Phase2_Architecture ["Phase 2: Two-Tower Retrieval Fine-tuning"]
+        direction TB
+
+        %% ============ LEFT TOWER: USER SIDE ============
+        subgraph User_Tower ["Left Tower: User Representation"]
+            direction TB
+            
+            %% 1. Input Layer (Mirroring Phase 1)
+            subgraph Input_Layer [Input Layer: Asymmetric Context]
+                direction LR
+                ItemSeq["Long User History (N=1024)<br/>(Fixed)"]:::frozen_block
+                QueryTokens["Learned Query Tokens (M=32)<br/>(Fixed)"]:::frozen_block
+            end
+            
+            %% 2. The Frozen Brain (Phase 1 Result)
+            subgraph Frozen_QFormer ["❄️ Frozen Q-Former (Pre-trained) ❄️"]
+                direction TB
+                
+                %% Using structure from Phase 1
+                subgraph Attention_Mechanism ["Interaction Block"]
+                    direction TB
+                    CrossAttn(("&times; Cross-Attention &times;")):::frozen_block
+                    SelfAttn(("Query Self-Attention")):::frozen_block
+                end
+                
+                UpdatedQueries["Updated Query States (M=32)"]:::frozen_block
+            end
+            
+            %% 3. The Trainable Adapter (The "Neck")
+            subgraph User_Adapter ["🔥 Trainable User Adapter 🔥"]
+                direction TB
+                FFN_User["Set Transformer / Aggregator<br/>(Compress 32 Queries -> 1 Vector)"]:::trainable_block
+                User_Emb["Final User Embedding u"]:::vector_node
+            end
+        end
+
+        %% Connections Left
+        ItemSeq -- "K,V" --> CrossAttn
+        QueryTokens -- "Q" --> CrossAttn
+        QueryTokens --> SelfAttn
+        
+        CrossAttn --> UpdatedQueries
+        SelfAttn --> UpdatedQueries
+        UpdatedQueries -- "Gradient Flow Starts Here" --> FFN_User --> User_Emb
+
+        %% ============ RIGHT TOWER: ITEM SIDE ============
+        subgraph Item_Tower ["Right Tower: Candidate Item"]
+            direction TB
+            
+            Target_Item["Candidate Item Features<br/>(Image + Text + Meta)"]:::vector_node
+            
+            subgraph Item_Encoder ["🔥 Trainable Item Encoder 🔥"]
+                Enc_Layer["Shared Image/Text Encoder<br/>(Aligning with User Space)"]:::trainable_block
+                Item_Emb["Item Embedding v"]:::vector_node
+            end
+        end
+
+        %% Connections Right
+        Target_Item --> Enc_Layer --> Item_Emb
+
+        %% ============ INTERACTION: CONTRASTIVE LOSS ============
+        subgraph Loss_Layer ["Joint Training Objective"]
+            DotProd(("Dot Product<br/>Similarity")):::loss_node
+            NCE_Loss["InfoNCE Loss<br/>(Maximize u & v sim)"]:::loss_node
+        end
+
+        %% Crossing Streams
+        User_Emb --> DotProd
+        Item_Emb --> DotProd
+        DotProd --> NCE_Loss
+
+    end
+```
+
 *   **Mechanism**: $v_{user} = \text{SetTransformer}(Q_{out}) \rightarrow \text{AttentionPooling}(Q'_{out})$
 *   **Why Attention Matters**: As established in 3.1.3, the tokens in $Q_{out}$ are highly specialized. Simple averaging would mix $Token_{hot}$ (strong signal) with $Token_{cold}$ (noise for the current query), destroying the retrieval signal.
 *   **The Soft-Sparsity Effect**: The Attention Pooling layer learns to dynamically assign high weights to the most relevant tokens for the *general* retrieval task, effectively "selecting" the best prototype from the set.
