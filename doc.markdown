@@ -277,9 +277,22 @@ While this approach is better than a simple MLP, it still forces the multi-modal
 
 ### 3.3 Retrieval Approach B: Conditional Residual Beam Retrieval (CRBR)
 
-This section details the proposed advanced retrieval head, which replaces the standard Set Transformer with a differentiable routing mechanism to enable multi-path retrieval.
+#### 3.3.1 Motivation: The Curse of Parameter Sharing
 
-#### 3.3.1 Overview
+While the Set Transformer (Approach A) successfully aggregates multi-token inputs, it suffers from a fundamental limitation inherent to all dense architectures: **Global Parameter Sharing**.
+
+**The Problem: Majority Domination**
+In a standard Set Transformer (or the original **Pinformer** encoder), the same set of dense weights (Attention, FFN) is used to process every user interaction, regardless of how unique or "outlier" the behavior is.
+*   **Optimization Bias**: To minimize global loss, the shared parameters inevitably over-fit the dominant patterns (the "Majority") while treating rare, complex interest combinations (the "Long-Tail" or "Oddball" users) as noise to be smoothed out.
+*   **The "Average" Trap**: As criticized in Chapter 1, Pinformer's dense attention forces a "regression to the mean." A user with a rare combination of interests (e.g., "Gothic Lolita" + "Welding Masks") will likely receive a "blurred" representation that recommends neither, as the model lacks dedicated capacity to represent this specific niche without hurting the performance on the majority.
+
+**The Solution: Sparse Routing for Capacity Isolation**
+To protect these "Oddball" users and ensure their sparse signals are not washed out by the majority gradient, we must introduce **Sparsity** into the architecture.
+Since we cannot modify the Item Tower (which must remain compatible with standard ANN indices), we innovate at the User Head:
+*   **Conditional Routing**: Instead of forcing all users through the same network, we dynamically select a specific path (sequence of residuals) from a large codebook based on the user's specific context.
+*   **Capacity Isolation**: This creates "dedicated lanes" for different interest patterns. Common behaviors share common paths, while unique behaviors activate specialized paths. Updates to the majority path do not overwrite the parameters of the niche path, effectively solving the catastrophic forgetting problem for long-tail users.
+
+#### 3.3.2 Overview
 
 The Routing Block at layer $l$ functions as a conditional residual generator operating within a Beam Search framework. It takes a set of active beam paths, selects the optimal residual vector from a learnable codebook based on the user context and current accumulation, and updates the path state.
 
@@ -343,7 +356,7 @@ graph LR
     class L1_Select,L2_Select_A,L2_Select_B routingBlock;
 ```
 
-#### 3.3.2 Notation & Parameters
+#### 3.3.3 Notation & Parameters
 
 **Learnable Parameters**
 
@@ -360,7 +373,7 @@ The input consists of a set of $B$ active paths (where $B$ is the Beam Width). F
 *   **Path Score $S_{k}^{(l-1)}$**: The cumulative log-probability of the path up to layer $l-1$.
 *   **User Context $Q$**: Static global context vector (e.g., output from Q-Former), $Q \in \mathbb{R}^{D}$.
 
-#### 3.3.3 Mathematical Process
+#### 3.3.4 Mathematical Process
 
 The process is divided into a shared Affinity Computation, followed by divergent branches for Training (Differentiable) and Inference (Beam Search).
 
@@ -413,13 +426,13 @@ $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
     $$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
     $$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
 
-#### 3.3.4 Output Normalization
+#### 3.3.5 Output Normalization
 
 Since the target embedding space (FashionCLIP) is a hypersphere, the output of the final layer $L$ must be normalized before ANN retrieval.
 
 $$q_{final} = \frac{v^{(L)}}{\| v^{(L)} \|_2}$$
 
-#### 3.3.5 Optimization Objectives
+#### 3.3.6 Optimization Objectives
 
 The loss function optimizes the final vector representation while ensuring codebook utilization and geometric alignment.
 
