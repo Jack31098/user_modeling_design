@@ -314,7 +314,7 @@ graph LR
     end
 
     %% Layer 1
-    Input([Pre-trained User Tower<br/>Output Tokens (M=32)]) --> L1_Select
+    Input(["Pre-trained User Tower output Tokens<br/>(M=32)"]) --> L1_Select
     CB1 -.-> L1_Select
     subgraph Layer_1 ["Layer 1: Coarse Routing"]
         direction TB
