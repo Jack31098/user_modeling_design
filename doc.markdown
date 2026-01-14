@@ -410,15 +410,15 @@ To allow gradient backpropagation through the discrete selection, we employ the 
 
 We perform exact selection and pruning to maintain the top $B$ best global paths.
 
-*   **Candidate Expansion**
+**Candidate Expansion**
 
-    $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
+$$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
 
-*   **Pruning (Top-K)**
+**Pruning (Top-K)**
 
-    $$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} ) $$
+$$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} ) $$
 
-*   **Hard Residual Extraction**
+**Hard Residual Extraction**
 
     For each selected candidate corresponding to parent path $k^{\ast}$ and code index $j^{\ast}$:
 
