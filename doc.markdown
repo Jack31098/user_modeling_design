@@ -174,7 +174,7 @@ When compressed into a single vector, these opposing gradients lead to a **"Blur
 By using a set of $M$ tokens, Q-Former allows these objectives to be satisfied **orthogonally across different tokens**, utilizing the "Soft Sparsity" of the attention mechanism:
 1.  **Specialization via Task B**: The Masked Modeling loss acts as a **Diversity Regularizer**, penalizing "Mode Collapse" (where all tokens learn the same recent interest). It forces specific tokens to specialize in encoding long-tail history (which Task A would otherwise discard).
 2.  **Alignment via Task A**: The ITC loss then tunes specific tokens to align with potential future interests.
-3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ may capture "Recent Shoes" (High Task A utility), while $Token_{B}$ captures "Vintage Watches" (High Task B utility).
+3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ may capture **Dominant Interests** (e.g., "Running Shoes", High Task A utility), while $Token_{B}$ captures **Niche/Long-Tail Interests** (e.g., "Climbing Carabiners", High Task B utility), ensuring the static profile remains sharp across the full spectrum of user preferences.
 
 ### 3.2 Retrieval Approach A: Set Transformer (The Standard)
 
@@ -266,7 +266,7 @@ graph LR
 **Learnable Parameters**
 
 *   **Codebook $\mathcal{C}^{(l)}$**: A matrix of size $M \times D$, containing $M$ learnable residual prototypes.
-    $$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
+$$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
 
 *   **Routing MLP $f_{\theta}^{(l)}$**: A neural network (e.g., Linear $\to$ ReLU $\to$ Linear) that maps the fused state to the codebook metric space.
 
@@ -291,11 +291,11 @@ The process is divided into a shared Affinity Computation, followed by divergent
 For each active path $k \in \{1, \dots, B\}$, we compute the compatibility distribution over the codebook entries.
 
 1.  **Conditional Projection**: Determine the search direction based on the current position ($v$) and intent ($Q$).
-    $$h_k = f_{\theta}^{(l)}( \text{Concat}(Q, v_{k}^{(l-1)}) )$$
+$$h_k = f_{\theta}^{(l)}( \text{Concat}(Q, v_{k}^{(l-1)}) )$$
 
 2.  **Logit Computation**: Compute the dot-product similarity with all $M$ entries in the codebook.
-    $$z_{k} = h_k \cdot (\mathcal{C}^{(l)})^\top$$
-    Where $z_{k} \in \mathbb{R}^M$, and $z_{k,j}$ represents the raw affinity score for the $j$-th code.
+$$z_{k} = h_k \cdot (\mathcal{C}^{(l)})^\top$$
+Where $z_{k} \in \mathbb{R}^M$, and $z_{k,j}$ represents the raw affinity score for the $j$-th code.
 
 **Step 2: Branching Strategy**
 
@@ -305,11 +305,11 @@ To allow gradient backpropagation through the discrete selection, we employ the 
 
 *   **Gumbel Noise Injection**: Sample $g_j \sim \text{Gumbel}(0, 1)$ i.i.d. for each code $j$.
 *   **Soft Selection Probabilities**:
-    $$\pi_{k,j} = \frac{\exp( (z_{k,j} + g_j) / \tau )}{\sum_{m=1}^{M} \exp( (z_{k,m} + g_m) / \tau )}$$
+$$\pi_{k,j} = \frac{\exp( (z_{k,j} + g_j) / \tau )}{\sum_{m=1}^{M} \exp( (z_{k,m} + g_m) / \tau )}$$
 *   **Soft Residual Extraction**:
-    $$r_{k}^{(l)} = \sum_{j=1}^{M} \pi_{k,j} \cdot c_j$$
+$$r_{k}^{(l)} = \sum_{j=1}^{M} \pi_{k,j} \cdot c_j$$
 *   **State Update**:
-    $$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
+$$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
 
 **Mode B: Inference (Beam Search)**
 
@@ -317,7 +317,7 @@ We perform exact selection and pruning to maintain the top $B$ best global paths
 
 *   **Candidate Expansion**
 
-    $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
+$$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
 
 *   **Pruning (Top-K)**
 
