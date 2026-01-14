@@ -162,6 +162,13 @@ The User Tower is pre-trained using a multi-task objective designed to ensure bo
 *   **Objective**: Ensures the compressed query tokens retain all necessary information from the input history.
 *   **Mechanism**: We randomly mask a percentage of the input history items. A lightweight decoder then attempts to reconstruct the missing items solely from the Q-Former's output tokens. This prevents the model from overfitting to easy patterns and encourages a robust, holistic understanding of user behavior.
 
+**Synergy & Inductive Bias Strategy**
+A critical design choice is to maintain these two objectives as **Complementary Orthogonal Tasks** rather than conflicting ones.
+*   **ITC (Contrastive)** forces the latent space to be *Discriminative*: it pushes representations apart to distinguish between positive and negative items.
+*   **LM (Generative)** forces the latent space to be *Descriptive*: it requires retaining fine-grained details to reconstruct history.
+
+By combining them, we prevent the "Collapsing Problem" common in single-task encoders (where the model ignores details irrelevant to the immediate next-click but vital for long-term profiling) while avoiding the "Blurring Problem" of pure generative models (which lack retrieval sharpness). Unlike naive multi-tasking (e.g., Pinformer) where conflicting gradients can muddy the representation, the Q-Former's query bottleneck acts as a natural regularizer, ensuring only high-utility information is encoded.
+
 ### 3.2 Retrieval Approach A: Set Transformer (The Standard)
 
 To be populated.
