@@ -416,7 +416,7 @@ $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
 
 **Pruning (Top-K)**
 
-$$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} ) $$
+    $$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} ) $$
 
 **Hard Residual Extraction**
 
