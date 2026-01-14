@@ -75,7 +75,11 @@ It should allow explicit control over retrieval scope (e.g., specific product li
 
 3. Two-Tower Retrieval Model
 
-This chapter outlines the evolution of the retrieval model, from static baselines to the proposed advanced architecture.
+Current industry standards like Pinformer typically operate on relatively short action sequences (e.g., the last 512 engagements). By attempting to encapsulate the user state into a single, rapidly evolving vector, these models fail to maintain a stable representation of long-term interests.
+
+In this design, we decouple the problem: this chapter focuses on modeling the **Stable User Profile**—the invariant core of a user's long-term history—using a Q-Former architecture. We explicitly exclude dynamic sequential modeling here; that aspect will be handled by a more advanced, specialized architecture in Chapter 4.
+
+This chapter outlines the evolution of this static retrieval model, from basic implementations to the proposed CRBR architecture.
 
 3.1 Static Baseline: Long-Term Sequence Q-Former
 
@@ -165,7 +169,7 @@ $$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
 
 Mode B: Inference (Beam Search)
 
-We perform exact selection and pruning to maintain the top-$B$ best global paths.
+We perform exact selection and pruning to maintain the top $B$ best global paths.
 
 Candidate Expansion:
 
@@ -339,13 +343,13 @@ $$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
 
 Mode B: Inference (Beam Search)
 
-We perform exact selection and pruning to maintain the top-$B$ best global paths.
+We perform exact selection and pruning to maintain the top $B$ best global paths.
 
 Candidate Expansion: Expand all $B$ current paths into $B \times M$ potential new paths. The global score for candidate $(k, j)$ is:
 
 $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
 
-Pruning (Top-K): Select the top-$B$ candidates with the highest scores from the pool.
+Pruning (Top-K): Select the top $B$ candidates with the highest scores from the pool.
 
 $$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \forall j \} )$$
 
