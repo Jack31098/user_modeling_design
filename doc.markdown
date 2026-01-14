@@ -314,7 +314,7 @@ graph LR
     end
 
     %% Layer 1
-    Input([User Query Q]) --> L1_Select
+    Input([Pre-trained User Tower<br/>Output Tokens (M=32)]) --> L1_Select
     CB1 -.-> L1_Select
     subgraph Layer_1 ["Layer 1: Coarse Routing"]
         direction TB
@@ -371,7 +371,7 @@ The input consists of a set of $B$ active paths (where $B$ is the Beam Width). F
 
 *   **Accumulated Vector $v_{k}^{(l-1)}$**: The sum of residuals from all previous layers.
 *   **Path Score $S_{k}^{(l-1)}$**: The cumulative log-probability of the path up to layer $l-1$.
-*   **User Context $Q$**: Static global context vector (e.g., output from Q-Former), $Q \in \mathbb{R}^{D}$.
+*   **User Context $Q$**: Static global context vector (e.g., output from Pre-trained User Tower), $Q \in \mathbb{R}^{D}$.
 
 #### 3.3.4 Mathematical Process
 
