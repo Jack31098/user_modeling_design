@@ -162,17 +162,36 @@ The User Tower is pre-trained using a multi-task objective designed to ensure bo
 *   **Objective**: Ensures the compressed query tokens retain all necessary information from the input history.
 *   **Mechanism**: We randomly mask a percentage of the input history items. A lightweight decoder then attempts to reconstruct the missing items solely from the Q-Former's output tokens. This prevents the model from overfitting to easy patterns and encourages a robust, holistic understanding of user behavior.
 
-**Synergy & Inductive Bias Strategy**
-A critical design choice is to maintain these two objectives as **Complementary Orthogonal Tasks** rather than conflicting ones.
-*   **ITC (Contrastive)** forces the latent space to be *Discriminative*: it pushes representations apart to distinguish between positive and negative items.
-*   **LM (Generative)** forces the latent space to be *Descriptive*: it requires retaining fine-grained details to reconstruct history.
+#### 3.1.3 Theoretical Justification: The "Differentiation" Strategy
 
-By combining them, we prevent the "Collapsing Problem" common in single-task encoders (where the model ignores details irrelevant to the immediate next-click but vital for long-term profiling) while avoiding the "Blurring Problem" of pure generative models (which lack retrieval sharpness). Unlike naive multi-tasking (e.g., Pinformer) where conflicting gradients can muddy the representation, the Q-Former's query bottleneck acts as a natural regularizer, ensuring only high-utility information is encoded.
+A critical challenge in single-vector models (like Pinformer) is the conflict between **ITC (Discriminative)** and **LM (Generative)** objectives.
+*   **ITC pushes for Selectivity**: It forces the representation to discard historical details to align tightly with the immediate future item (for retrieval sharpness).
+*   **LM pushes for Preservation**: It forces the representation to retain all historical details to reconstruct the past (for profile completeness).
+
+When compressed into a single vector, these opposing gradients lead to a **"Blurred Average"** that is neither sharp nor complete.
+
+**Solution: Sparsity in Set Space**
+By using a set of $M$ tokens, Q-Former allows these objectives to be satisfied **orthogonally across different tokens**, utilizing the "Soft Sparsity" of the attention mechanism:
+1.  **Specialization**: The LM loss acts as a **Diversity Regularizer**, penalizing "Mode Collapse" (where all tokens learn the same recent interest). It forces specific tokens to specialize in encoding long-tail history (which ITC would otherwise discard).
+2.  **Selective Activation**: The ITC loss then tunes specific tokens to align with potential future interests.
+3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ may capture "Recent Shoes" (High ITC utility), while $Token_{B}$ captures "Vintage Watches" (High LM utility).
 
 ### 3.2 Retrieval Approach A: Set Transformer (The Standard)
 
-To be populated.
-(Description of the standard industry baseline: aggregating Q-Former query tokens via a Set Transformer + MLP to perform standard single-vector dot-product retrieval against Item Embeddings).
+This section describes the standard industry baseline for utilizing the Q-Former's output.
+
+**The Aggregation Bottleneck**
+The Q-Former outputs a set of $M$ diverse tokens $Q_{out} = \{q_1, \dots, q_M\}$. To perform standard Two-Tower retrieval (which requires a single vector dot-product), these tokens must be aggregated.
+
+**Architecture: Set Transformer + Attention Pooling**
+We employ a Set Transformer layer followed by an Attention Pooling mechanism (using a learnable `[CLS]` token or weighted sum) rather than simple Mean Pooling.
+
+*   **Mechanism**: $v_{user} = \text{SetTransformer}(Q_{out}) \rightarrow \text{AttentionPooling}(Q'_{out})$
+*   **Why Attention Matters**: As established in 3.1.3, the tokens in $Q_{out}$ are highly specialized. Simple averaging would mix $Token_{hot}$ (strong signal) with $Token_{cold}$ (noise for the current query), destroying the retrieval signal.
+*   **The Soft-Sparsity Effect**: The Attention Pooling layer learns to dynamically assign high weights to the most relevant tokens for the *general* retrieval task, effectively "selecting" the best prototype from the set.
+
+**Limitations**
+While this approach is better than a simple MLP, it still forces the multi-modal user interest into a **Single Point** in the embedding space for the final retrieval step. This fundamentally limits the ability to retrieve items from disparate categories simultaneously (e.g., retrieving both "Shoes" and "Watches" in one pass if they lie in different directions). This limitation motivates the multi-path approach in Section 3.3.
 
 ### 3.3 Retrieval Approach B: Conditional Residual Beam Retrieval (CRBR)
 
