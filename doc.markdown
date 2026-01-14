@@ -361,7 +361,7 @@ graph LR
 **Learnable Parameters**
 
 *   **Codebook $\mathcal{C}^{(l)}$**: A matrix of size $M \times D$, containing $M$ learnable residual prototypes.
-$$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
+    $$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
 
 *   **Routing MLP $f_{\theta}^{(l)}$**: A neural network (e.g., Linear $\to$ ReLU $\to$ Linear) that maps the fused state to the codebook metric space.
 
@@ -386,11 +386,11 @@ The process is divided into a shared Affinity Computation, followed by divergent
 For each active path $k \in \{1, \dots, B\}$, we compute the compatibility distribution over the codebook entries.
 
 1.  **Conditional Projection**: Determine the search direction based on the current position ($v$) and intent ($Q$).
-$$h_k = f_{\theta}^{(l)}( \text{Concat}(Q, v_{k}^{(l-1)}) )$$
+    $$h_k = f_{\theta}^{(l)}( \text{Concat}(Q, v_{k}^{(l-1)}) )$$
 
 2.  **Logit Computation**: Compute the dot-product similarity with all $M$ entries in the codebook.
-$$z_{k} = h_k \cdot (\mathcal{C}^{(l)})^\top$$
-Where $z_{k} \in \mathbb{R}^M$, and $z_{k,j}$ represents the raw affinity score for the $j$-th code.
+    $$z_{k} = h_k \cdot (\mathcal{C}^{(l)})^\top$$
+    Where $z_{k} \in \mathbb{R}^M$, and $z_{k,j}$ represents the raw affinity score for the $j$-th code.
 
 **Step 2: Branching Strategy**
 
@@ -400,11 +400,11 @@ To allow gradient backpropagation through the discrete selection, we employ the 
 
 *   **Gumbel Noise Injection**: Sample $g_j \sim \text{Gumbel}(0, 1)$ i.i.d. for each code $j$.
 *   **Soft Selection Probabilities**:
-$$\pi_{k,j} = \frac{\exp( (z_{k,j} + g_j) / \tau )}{\sum_{m=1}^{M} \exp( (z_{k,m} + g_m) / \tau )}$$
+    $$\pi_{k,j} = \frac{\exp( (z_{k,j} + g_j) / \tau )}{\sum_{m=1}^{M} \exp( (z_{k,m} + g_m) / \tau )}$$
 *   **Soft Residual Extraction**:
-$$r_{k}^{(l)} = \sum_{j=1}^{M} \pi_{k,j} \cdot c_j$$
+    $$r_{k}^{(l)} = \sum_{j=1}^{M} \pi_{k,j} \cdot c_j$$
 *   **State Update**:
-$$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
+    $$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
 
 **Mode B: Inference (Beam Search)**
 
@@ -412,7 +412,7 @@ We perform exact selection and pruning to maintain the top $B$ best global paths
 
 *   **Candidate Expansion**
 
-$$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
+    $$\text{Score}_{k,j} = S_{k}^{(l-1)} + \log( \text{Softmax}(z_{k,j}) )$$
 
 *   **Pruning (Top-K)**
 
@@ -449,3 +449,134 @@ $$\mathcal{L}_{Align} = \| v^{(l)} - i^{+} \|_2^2$$
 **Load Balancing Loss**
 
 $$\mathcal{L}_{Balance} = \sum_{j=1}^{M} \bar{\pi}_{j} \log \bar{\pi}_{j}$$
+
+## 4. Dynamic Sequence Modeling: Generative Action Transformer
+
+While Chapter 3 addressed the stable user profile, this chapter introduces the dynamic layer capable of modeling real-time intent shifts and granular user control.
+
+```mermaid
+graph LR
+    %% 定义样式
+    classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef phase1 fill:#bbdefb,stroke:#1976d2,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef phase2 fill:#90caf9,stroke:#1565c0,stroke-width:4px;
+    classDef phase3 fill:#ffe0b2,stroke:#f57c00,stroke-width:4px;
+    classDef phase4 fill:#c8e6c9,stroke:#388e3c,stroke-width:4px;
+    classDef output fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef action fill:#ffcdd2,stroke:#c62828,stroke-width:2px;
+    classDef control fill:#e1bee7,stroke:#6a1b9a,stroke-width:2px;
+
+    %% ==================== 输入层 ====================
+    subgraph Input Layer [input layer: raw item sequence]
+        RawSequence[User History Sequence<br>Click, Save, etc.]:::input
+    end
+
+    %% ==================== Phase 3 前置: 离散化 ====================
+    subgraph Phase3_Pre [Phase 3 Pre-req: Item Discretization]
+        direction TB
+        ContinuousItem[continous Item Embeddings] --> RQKMeans[RQ-KMeans<br>Residual Quantization]:::phase3
+        RQKMeans --> DiscreteCodes[discrete Item Codes<br>Sequence of Tokens]:::phase3
+        noteP3[Turn complex Next-Item prediction<br> into stable Next-Token prediction]
+    end
+
+    %% 连接输入与离散化
+    RawSequence --> ContinuousItem
+
+    %% ==================== 主要模型架构 ====================
+    subgraph Main_Architecture [Generative Transformer Backbone]
+        direction LR
+
+        %% ---------- Phase 1 & 2: Encoder / Representation ----------
+        subgraph Phase1_2 [Phase 1&2: Stable & Sharp Representation]
+            direction TB
+            
+            subgraph P1 [Phase 1: Stable Baseline]
+                QueryTokens[Learnable Query Tokens<br>Long-term / Short-term]:::phase1
+                CrossAttn[Q-Former Paradigm<br>Cross-Attention Encoder]:::phase1
+            end
+
+            subgraph P2 [Phase 2: Sharpness]
+                ResidueBranch[Lightweight Personalized<br>Residue Branch]:::phase2
+                Gating[Gating Mechanism]:::phase2
+            end
+
+            BaseProfile[Multi-View<br>Base Profile]:::phase1
+            FinalSharpEmb[Final Sharp Continuous Embedding<br>Base + Gated Residue]:::phase2
+
+            %% Phase 1 流程
+            DiscreteCodes --> CrossAttn
+            QueryTokens --> CrossAttn --> BaseProfile
+            
+            %% Phase 2 流程
+            DiscreteCodes --> ResidueBranch --> Gating
+            BaseProfile --> FinalSum((+))
+            Gating --> FinalSum
+            FinalSum --> FinalSharpEmb
+
+            noteP2[Phase 2 shapeless <br>Phase 3 the Prerequisite]
+        end
+
+        %% ---------- Phase 3 & 4: Decoder / Generation ----------
+        subgraph Phase3_4 [Phase 3&4: Generative Paradigm & Control]
+             direction TB
+
+             %% Phase 4A: Action Tokens (Training)
+             ActionTokens["[ACTION] Tokens<br>Click/Save/Impression"]:::action
+
+             %% Phase 4B/C: Control Tokens (Inference)
+             ControlSeed["[SEED/CONTROL] Token<br>Explore/Shopping/Login"]:::control
+
+             %% Generative Decoder
+             GenerativeDecoder[Generative Decoder<br>Next-Token Prediction Task]:::phase4
+             
+             Softmax[Global Softmax over<br>Discrete Codebook]:::phase3
+
+             %% 连接
+             FinalSharpEmb --> GenerativeDecoder
+             ActionTokens -.->|Training: Interleaved with Items| GenerativeDecoder
+             ControlSeed -->|Inference: Appended at End| GenerativeDecoder
+             
+             GenerativeDecoder --> Softmax
+        end
+    end
+
+    %% ==================== 输出层 ====================
+    subgraph Output Layer [Phase 4: The Value Harvest]
+        ProbDist[Conditional Probability Distribution]:::output
+        Retrieval[Conditional Retrieval<br>controllable retriever]:::output
+        Signals[Action Propensity Signals<br>alignment Ranking]:::output
+
+        Softmax --> ProbDist
+        ProbDist --> Retrieval
+        ProbDist --> Signals
+    end
+
+    %% 关键依赖关系强调
+    FinalSharpEmb -.->|Crucial Prerequisite| RQKMeans
+```
+
+### 4.1 The Foundation: Robust Discretization (RQ-KMeans)
+
+To unify recommendation with generative modeling, we must first map the continuous item embedding space into a discrete codebook sequence. We employ **Residual Quantization (RQ-KMeans)** to ensure the discrete tokens preserve the geometric properties of the original space.
+
+To be populated.
+(Details on Item Embedding Health: Anisotropy, Hubness; and Codebook Health: Dead Codes, Entropy, Inertia).
+
+### 4.2 The Enhancement: Contextualized Residuals
+
+This section details the personalized residue mechanism used to refine the static user profile with micro-level item context.
+
+To be populated.
+(Details on the Gating Mechanism $g$ and the residual formula $E_{res} = g \cdot E_{id} + (1-g) \cdot (W \cdot E_{user})$).
+
+### 4.3 The Architecture: Generative Action Transformer
+
+We introduce the "Action Token" paradigm, treating user actions (Click, Cart, etc.) as first-class citizens in the sequence, allowing the model to simultaneously learn ranking alignment and next-item generation.
+
+To be populated.
+(Details on interleaving Action Tokens, the dual training objectives, and how this achieves the "Action Alignment" North Star).
+
+### 4.4 Inference: Controllable Generation
+
+To be populated.
+(Details on using Control Tokens at inference time to steer the generative process for specific business goals).
