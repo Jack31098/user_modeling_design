@@ -67,22 +67,21 @@ In this design, we decouple the problem: this chapter focuses on modeling the **
 
 This chapter outlines the evolution of this static retrieval model, from basic implementations to the proposed CRBR architecture.
 
-### 3.1 Static Baseline: Long-Term Sequence Q-Former
-To be populated. (Description of using the static Q-Former structure on long-term sequences, contrasting with the dynamic structure of Pinformer discussed in Chapter 4/Future work).
+### 3.1 User Tower Backbone: Static Q-Former
 
-### 3.2 User Tower Pre-training: Encoder-Decoder Structure
 To be populated.
-(Details on the pre-training strategy of the User Tower using the Q-Former architecture).
+(This section defines the core User Encoder architecture shared by both retrieval approaches. It details the Q-Former structure used to extract a static profile from long-term history and the Encoder-Decoder pre-training strategy).
 
-### 3.3 Baseline Two-Tower: Set Transformer Aggregation
+### 3.2 Retrieval Approach A: Set Transformer (The Standard)
+
 To be populated.
-(Description of a standard baseline where Q-Former query tokens are aggregated via a Set Transformer + MLP to perform standard dot-product retrieval against Item Embeddings).
+(Description of the standard industry baseline: aggregating Q-Former query tokens via a Set Transformer + MLP to perform standard single-vector dot-product retrieval against Item Embeddings).
 
-### 3.4 Advanced Model: Conditional Residual Beam Retrieval (CRBR)
+### 3.3 Retrieval Approach B: Conditional Residual Beam Retrieval (CRBR)
 
-This section details the proposed CRBR model, which surpasses the baselines by introducing a differentiable routing mechanism.
+This section details the proposed advanced retrieval head, which replaces the standard Set Transformer with a differentiable routing mechanism to enable multi-path retrieval.
 
-#### 3.4.1 Overview
+#### 3.3.1 Overview
 
 The Routing Block at layer $l$ functions as a conditional residual generator operating within a Beam Search framework. It takes a set of active beam paths, selects the optimal residual vector from a learnable codebook based on the user context and current accumulation, and updates the path state.
 
@@ -148,7 +147,7 @@ graph LR
     class L1_Select,L2_Select_A,L2_Select_B routingBlock;
 ```
 
-#### 3.4.2 Notation & Parameters
+#### 3.3.2 Notation & Parameters
 
 **Learnable Parameters**
 
@@ -165,7 +164,7 @@ The input consists of a set of $B$ active paths (where $B$ is the Beam Width). F
 *   **Path Score $S_{k}^{(l-1)}$**: The cumulative log-probability of the path up to layer $l-1$.
 *   **User Context $Q$**: Static global context vector (e.g., output from Q-Former), $Q \in \mathbb{R}^{D}$.
 
-#### 3.4.3 Mathematical Process
+#### 3.3.3 Mathematical Process
 
 The process is divided into a shared Affinity Computation, followed by divergent branches for Training (Differentiable) and Inference (Beam Search).
 
@@ -218,13 +217,13 @@ $$r_{new} = c_{j^{\ast}}$$
 $$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
 $$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
 
-#### 3.4.4 Output Normalization
+#### 3.3.4 Output Normalization
 
 Since the target embedding space (FashionCLIP) is a hypersphere, the output of the final layer $L$ must be normalized before ANN retrieval.
 
 $$q_{final} = \frac{v^{(L)}}{\| v^{(L)} \|_2}$$
 
-#### 3.4.5 Optimization Objectives
+#### 3.3.5 Optimization Objectives
 
 The loss function optimizes the final vector representation while ensuring codebook utilization and geometric alignment.
 
