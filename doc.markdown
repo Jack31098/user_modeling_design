@@ -422,9 +422,11 @@ $$\mathcal{P}_{new} = \text{TopK}_{B}( \{ \text{Score}_{k,j} \mid \forall k, \fo
 
 For each selected candidate corresponding to parent path $k^{\ast}$ and code index $j^{\ast}$:
 
-    $$r_{new} = c_{j^{\ast}}$$
-    $$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
-    $$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
+$$r_{new} = c_{j^{\ast}}$$
+
+$$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
+
+$$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
 
 #### 3.3.5 Output Normalization
 
