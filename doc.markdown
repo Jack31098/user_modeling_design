@@ -333,9 +333,9 @@ This motivation leads directly to the **Conditional Residual Beam Retrieval (CRB
 While the Set Transformer (Approach A) successfully aggregates multi-token inputs, it suffers from a fundamental limitation inherent to all dense architectures: **Global Parameter Sharing**.
 
 **The Problem: Majority Domination**
-In a standard Set Transformer (or the original **Pinformer** encoder), the same set of dense weights (Attention, FFN) is used to process every user interaction, regardless of how unique or "outlier" the behavior is.
+In a standard Set Transformer (or the original **PinnerFormer** [5] encoder), the same set of dense weights (Attention, FFN) is used to process every user interaction, regardless of how unique or "outlier" the behavior is.
 *   **Optimization Bias**: To minimize global loss, the shared parameters inevitably over-fit the dominant patterns (the "Majority") while treating rare, complex interest combinations (the "Long-Tail" or "Oddball" users) as noise to be smoothed out.
-*   **The "Average" Trap**: As criticized in Chapter 1, Pinformer's dense attention forces a "regression to the mean." A user with a rare combination of interests (e.g., "Gothic Lolita" + "Welding Masks") will likely receive a "blurred" representation that recommends neither, as the model lacks dedicated capacity to represent this specific niche without hurting the performance on the majority.
+*   **The "Average" Trap**: As criticized in Chapter 1, PinnerFormer's [5] dense attention forces a "regression to the mean." A user with a rare combination of interests (e.g., "Gothic Lolita" + "Welding Masks") will likely receive a "blurred" representation that recommends neither, as the model lacks dedicated capacity to represent this specific niche without hurting the performance on the majority.
 
 **The Solution: Sparse Routing for Capacity Isolation**
 To protect these "Oddball" users and ensure their sparse signals are not washed out by the majority gradient, we must introduce **Sparsity** into the architecture.
@@ -494,6 +494,12 @@ $$q_{final} = \frac{v^{(L)}}{\| v^{(L)} \|_2}$$
 #### 3.3.6 Optimization Objectives
 
 The loss function optimizes the final vector representation while ensuring codebook utilization and geometric alignment.
+
+> **Technical Insight: The Necessity of L2 Loss for Residuals**
+> A critical design choice is the loss function geometry. While Cosine Similarity is standard for final retrieval, it is ill-suited for the intermediate residual steps ($v_t = v_{t-1} + r_t$).
+> *   **The Magnitude Problem**: Cosine loss only optimizes vector direction ($\theta$), ignoring magnitude ($||r_t||$).
+> *   **Geometric Drift**: Without magnitude constraints, the residual vector $r_t$ may "overshoot" or "undershoot" the error vector ($Target - v_{t-1}$), breaking the additive property of the beam search.
+> *   **Decision**: We strictly use **MSE (L2 Distance)** for residual codebook training to ensure $r_t$ accurately represents the *displacement* needed to reach the target.
 
 $$\mathcal{L}_{total} = \mathcal{L}_{NCE} + \alpha \mathcal{L}_{Align} + \beta \mathcal{L}_{Balance}$$
 
@@ -1197,3 +1203,5 @@ To solve the indexing crisis, we must train a lightweight **Item Encoder** (Towe
 [3] Patraucean, V., et al. **Byte Latent Transformer: Patches Scale Better Than Tokens**. (2024). *arXiv preprint arXiv:2412.09871*. Retrieved from https://arxiv.org/pdf/2412.09871
 
 [4] Dehghani, M., Gouws, S., Vinyals, O., Uszkoreit, J., & Kaiser, Ł. **Universal Transformers**. (2019). *International Conference on Learning Representations (ICLR)*. Retrieved from https://arxiv.org/pdf/1807.03819
+
+[5] Pancha, N., Zhai, A., Leskovec, J., & Rosenberg, C. **PinnerFormer: Sequence Modeling for User Representation at Pinterest**. (2022). *arXiv preprint arXiv:2205.04507*. Retrieved from https://arxiv.org/abs/2205.04507
