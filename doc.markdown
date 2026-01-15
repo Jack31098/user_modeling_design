@@ -760,9 +760,6 @@ graph TB
     subgraph Context ["1. System Prompt"]
         direction TB
         UserQ["User Q-Former Tokens<br/>(M=32)"]:::context_block
-        Projector["Adapter / Projector<br/>(Dimension Match)"]:::projector_block
-        
-        UserQ --> Projector
     end
 
     %% ============ 2. THE INPUT SEQUENCE ============
@@ -792,16 +789,12 @@ graph TB
     end
 
     %% ============ Connections ============
-    Projector --> Concat_Layer
+    UserQ --> Concat_Layer
     AT --> Concat_Layer
     
     Concat_Layer --> Decoder_Layers
     Decoder_Layers --> Head_Action
     Decoder_Layers --> Head_Item
-
-    %% ============ Annotations ============
-    note_proj["Feature Projection<br/>needed to align dimensions"]
-    Projector -.-> note_proj
 ```
 
 #### 4.3.2 Sequence Construction: The "Sentence" of Behavior
