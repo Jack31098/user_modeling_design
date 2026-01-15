@@ -663,69 +663,7 @@ This section details **Residual Quantization (RQ-KMeans)**, the mechanism that t
 #### 4.2.1 Motivation: Why Residuals Are Not Enough
 While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
 
-```mermaid
-graph LR
-    %% Styles
-    classDef raw_item fill:#eeeeee,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef token_group fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
-    classDef vocab_note fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-
-    %% 1. The Old World
-    subgraph Raw_World ["Standard World: Infinite ID Stream"]
-        direction LR
-        ID1["Item #10492<br>(Nike Air)"]:::raw_item
-        ID2["Item #88210<br>(Adidas Boost)"]:::raw_item
-        ID3["Item #99999<br>(Unknown)"]:::raw_item
-        
-        ID1 -.-> ID2 -.-> ID3
-    end
-
-    %% Transformation
-    Trans_Arrow1((&darr;<br>RQ-KMeans))
-    Trans_Arrow2((&darr;<br>RQ-KMeans))
-    Trans_Arrow3((&darr;<br>RQ-KMeans))
-    
-    ID1 --> Trans_Arrow1
-    ID2 --> Trans_Arrow2
-    ID3 --> Trans_Arrow3
-
-    %% Connect Trans_Arrow to Token Subgraphs
-    Trans_Arrow1 --> T1
-    Trans_Arrow2 --> T2
-    Trans_Arrow3 --> T3
-
-    %% 2. The New World
-    subgraph Token_World ["Our World: Semantic Code Stream"]
-        direction LR
-        
-        subgraph T1 ["Item 1 Tokens"]
-            direction TB
-            C1_1["Code 4: SHOES"]
-            C1_2["Code 12: SPORT"]
-            C1_3["Code 8: RED"]
-        end
-        
-        subgraph T2 ["Item 2 Tokens"]
-            direction TB
-            C2_1["Code 4: SHOES"]
-            C2_2["Code 12: SPORT"]
-            C2_3["Code 2: BLUE"]
-        end
-        
-        subgraph T3 ["Item 3 Tokens"]
-            direction TB
-            C3_1["Code 9: HAT"]
-            C3_2["Code 1: SUMMER"]
-            C3_3["Code 5: WHITE"]
-        end
-
-        T1 --> T2 --> T3
-    end
-
-
-
-    class T1,T2,T3 token_group
-```
+![RQ-KMeans Discretization Process](https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/rq-kmeans.png)
 
 Industry consensus (e.g., TIGER, OneRec) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
 
