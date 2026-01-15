@@ -845,51 +845,75 @@ Thus, the problem is inherently a **Reinforcement Learning** problem. We aim to 
 
 #### 4.3.4 Mathematical Alignment: The "Supervised" Shortcut
 
-If we employ the standard **REINFORCE (Policy Gradient)** algorithm, we aim to maximize the expected reward of a trajectory $\tau$. The gradient of the objective $J(\theta)$ is:
+To rigorously justify using Supervised Learning for a Reinforcement Learning problem, we start with the standard **Policy Gradient** derivation.
+
+**Definitions**
+*   **State $s_t$**: The entire context history up to time $t$, i.e., $s_t = [q_{1:M}, x_{1:t-1}]$.
+*   **Action $a_t$**: The generation of the next token $x_t \in \mathcal{V}$.
+*   **Policy $\pi_\theta(a_t \mid s_t)$**: The Transformer's next-token probability distribution.
+*   **Trajectory $\tau$**: A sequence of state-action pairs $(s_0, a_0, s_1, a_1, \dots)$.
+
+**Objective: Maximize Expected Reward**
+We aim to maximize the expected reward over all possible trajectories:
+
+$$
+J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau)] = \sum_{\tau} P(\tau \mid \theta) R(\tau)
+$$
+
+**The Gradient Derivation**
+Using the "Log-Derivative Trick" ($\nabla P = P \nabla \log P$), the gradient is:
 
 $$
 \begin{aligned}
-J(\theta) &= \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau)] \\
-\nabla_\theta J(\theta) &\approx \sum_{t} R_t \cdot \nabla_\theta \log \pi_\theta(a_t \mid s_t)
+\nabla_\theta J(\theta) &= \sum_{\tau} \nabla_\theta P(\tau \mid \theta) R(\tau) \\
+&= \sum_{\tau} P(\tau \mid \theta) \nabla_\theta \log P(\tau \mid \theta) R(\tau) \\
+&= \mathbb{E}_{\tau \sim \pi_\theta} [ R(\tau) \cdot \nabla_\theta \log P(\tau \mid \theta) ]
 \end{aligned}
 $$
 
+Expanding the trajectory probability $P(\tau \mid \theta) = P(s_0) \prod_{t} \pi_\theta(a_t \mid s_t) P(s_{t+1} \mid s_t, a_t)$, and noting that transition dynamics $P(s_{t+1} \mid \dots)$ are independent of $\theta$:
+
+$$
+\nabla_\theta \log P(\tau \mid \theta) = \sum_{t} \nabla_\theta \log \pi_\theta(a_t \mid s_t)
+$$
+
+Thus, the final gradient update rule is:
+
+$$
+\nabla_\theta J(\theta) \approx \sum_{t} \underbrace{R_t}_{\text{Return}} \cdot \underbrace{\nabla_\theta \log \pi_\theta(a_t \mid s_t)}_{\text{Score Function}}
+$$
+
 **Case 1: The Positive Interaction (Click)**
-If the user clicks, we assign a reward $R=1$. The RL gradient becomes:
+If the generated item leads to a Click, the reward is positive (e.g., $R_t = +1$). The gradient attempts to **increase** the log-probability of the action:
 
 $$
-\nabla \text{PG}_{pos} = 1 \cdot \nabla \log \pi(a_{click})
+\nabla \text{PG}_{pos} = (+1) \cdot \nabla \log \pi_\theta(a_{target} \mid s_t)
 $$
 
-Compare this to the gradient of the standard **Negative Log-Likelihood (NLL)** used in supervised training:
+This is mathematically identical to the negative gradient of the **Cross-Entropy Loss** ($\mathcal{L}_{CE} = - \log \pi$):
 
 $$
-\mathcal{L}_{NLL} = - \log \pi(a_{target}) \implies \nabla \mathcal{L}_{NLL} = - \nabla \log \pi(a_{target})
+- \nabla \mathcal{L}_{CE} = \nabla \log \pi_\theta(a_{target} \mid s_t)
 $$
 
-**Observation**: Maximizing the RL Reward ($+ \nabla \log \pi$) is mathematically identical to Minimizing the NLL Loss ($- \nabla \log \pi$).
-*Conclusion*: For positive samples, Supervised Learning is not an approximation; it is an **exact implementation** of Policy Gradient.
+*Conclusion*: Minimizing Cross-Entropy on positive samples is an exact proxy for maximizing Policy Gradient with reward +1.
 
 **Case 2: The Negative Interaction (Skip)**
-If the user skips, we assign a reward $R=-1$. The RL gradient aims to push the probability down:
+If the user skips, the reward is negative (e.g., $R_t = -1$). The gradient attempts to **decrease** the probability:
 
 $$
-\nabla \text{PG}_{neg} = -1 \cdot \nabla \log \pi(a_{skip}) = - \frac{1}{\pi(a_{skip})} \nabla \pi(a_{skip})
+\nabla \text{PG}_{neg} = (-1) \cdot \nabla \log \pi_\theta(a_{skip} \mid s_t) = - \frac{1}{\pi(a_{skip})} \nabla \pi(a_{skip})
 $$
 
-**The Instability Trap**: As the model gets better, $\pi(a_{skip}) \to 0$. The term $\frac{1}{\pi}$ approaches infinity, causing **Gradient Explosion**. Standard RL is notoriously unstable on negatives for this reason.
-
-**The Solution: Gradient Substitution (The STE Trick)**
-Instead of using the unstable RL gradient for negatives, we substitute it with the gradient derived from the **Binary Cross Entropy (BCE)** loss for the negative class ($1 - \pi$):
+**The Instability Trap**: As the model improves, $\pi(a_{skip}) \to 0$, causing the term $\frac{1}{\pi}$ to approach infinity (**Gradient Explosion**).
+To fix this, we replace the unstable RL gradient with the **Binary Cross Entropy (BCE)** gradient for the negative class ($1 - \pi$), which is bounded and stable:
 
 $$
-\mathcal{L}_{BCE\_Neg} = - \log(1 - \pi(a_{skip}))
+\mathcal{L}_{Stable} \approx - \log(1 - \pi_\theta(a_{skip} \mid s_t))
 $$
-
-This gradient is bounded and numerically stable.
 
 **Final Objective Formulation**
-We arrive at the conclusion that the standard **Next Token Prediction (CLM)** loss functions as a **Numerically Stable Proxy** for the underlying RL objective. It allows us to train a Policy Network using the robust optimization landscape of Supervised Learning.
+We conclude that the standard **Next Token Prediction (CLM)** loss functions as a **Numerically Stable Proxy** for the underlying RL objective.
 
 $$ \mathcal{L}_{\text{Total}} = \mathcal{L}_{\text{CLM}} \quad (\text{serving as } \mathcal{L}_{\text{Stable-RL}}) $$
 
