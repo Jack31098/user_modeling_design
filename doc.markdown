@@ -361,7 +361,7 @@ graph LR
 **Learnable Parameters**
 
 *   **Codebook $\mathcal{C}^{(l)}$**: A matrix of size $M \times D$, containing $M$ learnable residual prototypes.
-    $$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
+$$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
 
 *   **Routing MLP $f_{\theta}^{(l)}$**: A neural network (e.g., Linear $\to$ ReLU $\to$ Linear) that maps the fused state to the codebook metric space.
 
@@ -561,23 +561,30 @@ graph LR
     FinalSharpEmb -.->|Crucial Prerequisite| RQKMeans
 ```
 
-### 4.1 The Foundation: Robust Discretization (RQ-KMeans)
+**Architecture Overview**
+The architecture diagram above illustrates the transformation from raw history to actionable signals, divided into four logical phases:
+1.  **Phase 1 (Stable Encoder)**: Uses the Q-Former (from Chapter 3) to extract a stable, long-term user profile.
+2.  **Phase 2 (Micro-Level Enhancement)**: Injects a **Contextualized Residual** (Section 4.1) into the item embeddings. This breaks the limitation of static item vectors, allowing the model to adapt item representations based on the specific user context and providing the necessary capacity for action prediction.
+3.  **Phase 3 (Macro-Level Discretization)**: Transitions from continuous retrieval to discrete generation using **RQ-KMeans** (Section 4.2). This step ensures geometric sharpness and enables the use of powerful Generative Transformers.
+4.  **Phase 4 (Generative Action Modeling)**: The core engine (Section 4.3) that interleaves **Action Tokens** with Item Tokens. It is trained to simultaneously predict the user's feedback (Alignment) and the next item (Retrieval), controllable via inference-time prompting (Section 4.4).
 
-To unify recommendation with generative modeling, we must first map the continuous item embedding space into a discrete codebook sequence. We employ **Residual Quantization (RQ-KMeans)** to ensure the discrete tokens preserve the geometric properties of the original space.
+### 4.1 The Enhancement: Contextualized Residuals
+
+Before moving to the generative paradigm, we must first address the limitation of static item embeddings. A globally shared embedding table cannot capture the nuanced, personalized meaning of an item for different users.
+
+To be populated.
+(Details on the Gating Mechanism $g$ and the residual formula $E_{res} = g \cdot E_{id} + (1-g) \cdot (W \cdot E_{user})$. This provides the parameter capacity needed for accurate Action Prediction).
+
+### 4.2 The Foundation: Robust Discretization (RQ-KMeans)
+
+While Contextualized Residuals improve the representation, standard contrastive losses (NCE) still suffer from "distributional blurring" in the continuous space. To achieve true sharpness, we shift the paradigm from "predicting a vector" to "predicting a code" via **Residual Quantization (RQ-KMeans)**.
 
 To be populated.
 (Details on Item Embedding Health: Anisotropy, Hubness; and Codebook Health: Dead Codes, Entropy, Inertia).
 
-### 4.2 The Enhancement: Contextualized Residuals
-
-This section details the personalized residue mechanism used to refine the static user profile with micro-level item context.
-
-To be populated.
-(Details on the Gating Mechanism $g$ and the residual formula $E_{res} = g \cdot E_{id} + (1-g) \cdot (W \cdot E_{user})$).
-
 ### 4.3 The Architecture: Generative Action Transformer
 
-We introduce the "Action Token" paradigm, treating user actions (Click, Cart, etc.) as first-class citizens in the sequence, allowing the model to simultaneously learn ranking alignment and next-item generation.
+With a sharp discrete space (Phase 3) and personalized capacity (Phase 2), we build the **Generative Action Transformer**. This model treats user actions (Click, Cart, etc.) as first-class citizens in the sequence.
 
 To be populated.
 (Details on interleaving Action Tokens, the dual training objectives, and how this achieves the "Action Alignment" North Star).
