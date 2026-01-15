@@ -694,7 +694,9 @@ To generate embeddings that satisfy the "Global Isotropy, Local Structure" requi
 The core issue with standard Euclidean residual ($r = x - c$) on spherical data is **Residual Correlation**. If $x$ and $c$ are close on the sphere, the simple difference vector retains a strong component along the direction of $c$, meaning the residual is not "pure" new information.
 *   **Geometric Optimization**: We employ **Tangent Space Projection** (Orthogonalization) to compute residuals.
 *   **Mechanism**: Instead of simple subtraction, we project $x$ onto the subspace orthogonal to the chosen centroid $c$.
+    
     $$r = x - (x^\top c) \cdot c$$
+    
     (assuming $c$ is unit norm). This removes the component of $x$ that is already explained by $c$, ensuring that $r \perp c$. The next layer of quantization thus operates in a strictly complementary subspace, maximizing the information gain of each hierarchical step.
 
 ### 4.3 The Architecture: Generative Action Transformer
