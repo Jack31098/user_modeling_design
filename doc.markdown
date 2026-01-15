@@ -1011,6 +1011,7 @@ The true power of the Generative Action Transformer lies in its ability to be **
 #### 4.4.1 Mechanism: Prompt Engineering for Recommendation
 
 The input to the model during inference is:
+
 $$ X_{inf} = [\text{User Profile}] + [\text{History}] + [\textbf{Control Prompts}] $$
 
 The **Control Prompts** effectively reshape the probability distribution $P(\text{Next Item} \mid \text{Context})$, guiding the beam search toward specific subspaces of the item catalog.
@@ -1054,6 +1055,8 @@ Instead of using a fixed, pre-computed vocabulary (from RQ-KMeans), we propose i
 **The Hypothesis**:
 If we force the Transformer to pass its hidden state through a discrete bottleneck (via Gumbel-Softmax) layer-by-layer, it might learn a "Language of Items" that is perfectly optimized for the retrieval task, rather than for geometric reconstruction.
 
+This concept is structurally isomorphic to the **Conditional Residual Beam Retrieval (CRBR)** proposed in Chapter 3. In CRBR, we used a *fixed* residual codebook to route user interests. Here, we propose moving that mechanism *inside* the Transformer to learn a *dynamic* residual codebook. It is the logical evolution from "Routing over fixed paths" to "Learning the paths themselves."
+
 ### 5.2 Theoretical Architecture
 
 We envision a **Residual Routing Transformer** that progressively refines the user intent through discrete checkpoints.
@@ -1061,15 +1064,21 @@ We envision a **Residual Routing Transformer** that progressively refines the us
 Let $H_0$ be the initial user history embedding. The model generates a sequence of latent query tokens $q_1, q_2, q_3$:
 
 1.  **Layer 1 (Coarse Intent)**:
+
     $$ q_1 = \text{GumbelTop1}( \text{Projector}_1(H_0), \mathcal{C}_1 ) $$
     $$ H_1 = \text{TransformerBlock}(H_0, q_1) $$
+
 2.  **Layer 2 (Fine Intent)**:
+
     $$ q_2 = \text{GumbelTop1}( \text{Projector}_2(H_1), \mathcal{C}_2 ) $$
     $$ H_2 = \text{TransformerBlock}(H_1, q_2) $$
+
 3.  **Layer 3 (Precise Item)**:
+
     $$ q_3 = \text{GumbelTop1}( \text{Projector}_3(H_2), \mathcal{C}_3 ) $$
 
 **Training Objective**:
+
 $$ \mathcal{L} = \| \text{StopGrad}(q_1+q_2+q_3) - \text{TargetItem} \| + \mathcal{L}_{\text{Hierarchy}} $$
 
 ### 5.3 The Three "Death Traps" (Why this is hard)
