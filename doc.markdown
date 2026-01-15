@@ -1097,9 +1097,27 @@ While theoretically elegant, this approach faces three formidable optimization c
 *   **The Problem**: In RQ-KMeans, every item has a fixed ID `[12, 55, 9]`. We can build an inverted index. In this Latent approach, the "Code" is a dynamic activation of the User Tower.
 *   **The Consequence**: To retrieve an item, we must know its dynamic code. This requires training a **Dual-Tower VQ-VAE** (an Item Tower that mimics the User Tower's tokenization), adding massive complexity to ensure the two towers stay aligned.
 
-### 5.4 Path Forward
+### 5.4 Path Forward: The "Hierarchy Guarantee" Protocol
 
-To make this end-to-end dream a reality, future research must focus on:
-1.  **Commitment Losses**: Adding strict VQ-VAE style losses ($\|sg(z)-e\|$) to force codebook usage.
-2.  **Orthogonal Constraints**: Forcing $q_2$ to be orthogonal to $q_1$ in the tangent space to ensure true residual learning.
-3.  **Joint-Tower Training**: Training the Item Tokenizer and User Retriever simultaneously with shared codebooks.
+To prevent the "Death Traps" and make this end-to-end dream a reality, we must impose strict constraints that force the model to respect the residual hierarchy. We propose a **Progressive Residual Training Protocol**:
+
+**1. Explicit Residual Targets (Don't let layers "redo" work)**
+Instead of letting every layer predict the same target $y$, we must mathematically enforce the residual definition.
+*   **Layer 1 Target**: The Item Embedding $y$.
+*   **Layer 2 Target**: The Residual $r_1 = y - \text{StopGrad}(\hat{y}_1)$.
+*   **Layer 3 Target**: The Fine Residual $r_2 = r_1 - \text{StopGrad}(\hat{y}_2)$.
+This forces $q_2$ and $q_3$ to learn *only* what previous layers missed.
+
+**2. "Strictly Better" Constraint (Progressive Margin Loss)**
+We add a ranking loss to ensure that adding a layer *always* improves prediction accuracy.
+$$ \mathcal{L}_{margin} = \sum_{k=1}^{2} \max(0, \mathcal{L}(H_{k+1}, y) - \mathcal{L}(H_k, y) + \delta) $$
+This penalizes the model if deeper layers (which consume more compute/tokens) do not provide a tangible gain ($\delta$) over shallower layers.
+
+**3. Capacity & Orthogonality Constraints**
+*   **Codebook Utilization**: Enforce strict entropy maximization ($\mathcal{L}_{entropy}$) on the Gumbel-Softmax distribution to prevent collapse to a few tokens.
+*   **Orthogonality**: Force latent query vectors to be orthogonal ($\langle q_k, q_{k+1} \rangle \approx 0$) to ensure they capture complementary information subspaces.
+
+**4. Dual-Tower Codebook Alignment**
+To solve the indexing crisis, we must train a lightweight **Item Encoder** (Tower B) alongside the User Tower (Tower A).
+*   **Objective**: User Code $z_u$ should match Item Code $z_i$.
+*   **Mechanism**: Shared Codebooks. The Item Encoder acts as the "Ground Truth" tokenizer, while the User Tower learns to predict these tokens from history.
