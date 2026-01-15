@@ -971,3 +971,20 @@ $$ \text{Logit}_{\text{real}} = \text{Logit}_{\text{model}} - \log(\alpha) $$
 We recommend constructing different training mixtures for different deployment goals:
 *   **For Retrieval (Recall)**: Use a **High-Positive Ratio** (e.g., 1:1 or 1:2). We want the model to be an "optimist," fluent in generating valid item sequences. We only need enough negatives to teach it what *not* to recommend, not to estimate precise CTR.
 *   **For Ranking (Precision)**: Use a **Realistic/Hard-Negative Ratio** (e.g., 1:10). Here, the goal is discrimination. The generative capability is secondary; we prioritize the model's ability to distinguish a `[CLICK]` from a `[SKIP]` given a specific item.
+
+#### 4.3.6 Advanced Training Protocol: Transfer & Curriculum
+
+Directly training a Generative Transformer on raw, high-negative (1:100) logs is notoriously difficult; the model tends to collapse, predicting `[SKIP]` for everything. To bridge the gap between "Generative Fluency" and "Discriminative Precision," we propose a **Two-Stage Curriculum**.
+
+**Stage 1: Generative Pre-training (The "Optimist" Phase)**
+*   **Data Ratio**: High Positive (e.g., 1:1 or 1:2).
+*   **Goal**: Learn the "Syntax" of item codes and basic user affinity. The model learns valid item transitions and semantic clusters.
+*   **Scope**: Full model training.
+
+**Stage 2: Discriminative Fine-tuning (The "Realist" Phase)**
+*   **Data Ratio**: Progressively shift towards reality (Curriculum: 1:2 $\to$ 1:5 $\to$ 1:10).
+*   **Goal**: Learn the subtle boundary between "Relevant" and "Clickable."
+*   **Efficient Tuning Strategy**: To prevent Catastrophic Forgetting (where the model forgets how to generate valid items), we can apply **Parameter-Efficient Fine-Tuning (PEFT)**.
+    *   **Freeze**: The Transformer Backbone (The "Brain").
+    *   **Train**: Only the **Contextualized Residuals (Section 4.1)** and the Action Prediction Head.
+    *   **Why**: As hypothesized in 4.1, the *Static Base* captures the semantic "Syntax" (learned in Stage 1), while the *Learnable Residual* captures the personalized "Preference" (refined in Stage 2). This allows us to adapt to high-negative ranking distributions with minimal computational cost and high stability.
