@@ -17,9 +17,9 @@ To balance **Architecture Innovation** with **Engineering ROI**, we propose a st
 
 | Phase | Goal (ROI) | Architecture Change | Engineering Cost | Risk |
 | :--- | :--- | :--- | :--- | :--- |
-| **Phase 1: The Quick Win (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
-| **Phase 2: The Specialist** | **Fix the Long-Tail**. Boost engagement for niche/inactive users who currently get generic recs. | **Deploy CRBR Head** (Ch 3.3). Conditional routing for diverse user groups. | Medium. Requires updating Serving Logic to support multi-vector. | Medium |
-| **Phase 3: The Moonshot** | **Fix the Action Gap**. Break the ceiling of CTR/CVR by modeling "Click" vs "Skip" explicitly. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High. Requires iteration on item representation learning  | High |
+| **Phase 1: Encoder Upgrade (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
+| **Phase 2: Dynamic Routing** | **Fix the Long-Tail**. Boost engagement for niche/inactive users who currently get generic recs. | **Deploy CRBR Head** (Ch 3.3). Conditional routing for diverse user groups. | Medium. Requires updating Serving Logic to support multi-vector. | Medium |
+| **Phase 3: Generative Paradigm** | **Next-Gen Retrieval**. Unify Retrieval & Pre-Ranking. Generate high-precision candidates aligned with "Click" intent. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High. Requires iteration on item representation learning | High |
 
 ---
 
@@ -102,7 +102,7 @@ graph TB
     classDef task_head fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
     classDef complexity_note fill:#212121,stroke:#000,stroke-width:1px,color:#fff;
 
-    subgraph Phase1_Architecture ["Phase 1: Q-Former Pre-training (The 'Speedy' Encoder)"]
+    subgraph Phase1_Architecture ["Phase 1: Q-Former Pre-training (Linear Complexity Encoder)"]
         direction TB
 
         %% ============ 1. Asymmetric Inputs ============
@@ -121,7 +121,7 @@ graph TB
             direction TB
             
             %% Visualizing the Efficiency Secret
-            subgraph Attention_Mechanism ["Efficiency Core: Cross-Attention Only"]
+            subgraph Attention_Mechanism ["Computational Efficiency Mechanism"]
                 direction TB
                 
                 note_speed["🚀 Speed Advantage:<br/>No Item-to-Item Self-Attention.<br/>Complexity is Linear O(N), not Quadratic O(N²)."]:::complexity_note
@@ -270,7 +270,7 @@ graph TB
             end
             
             %% 3. The Trainable Adapter (The "Neck")
-            subgraph User_Adapter ["🔥 Trainable User Adapter 🔥"]
+            subgraph User_Adapter ["🔥 Trainable Adapter / Projector 🔥"]
                 direction TB
                 FFN_User["Set Transformer / Aggregator<br/>(Compress 32 Queries -> 1 Vector)"]:::trainable_block
                 User_Emb["Final User Embedding u"]:::vector_node
@@ -328,7 +328,7 @@ This motivation leads directly to the **Conditional Residual Beam Retrieval (CRB
 
 ### 3.3 Retrieval Approach B: Conditional Residual Beam Retrieval (CRBR)
 
-#### 3.3.1 Motivation: The Curse of Parameter Sharing
+#### 3.3.1 Motivation: Limitation of Global Parameter Sharing
 
 While the Set Transformer (Approach A) successfully aggregates multi-token inputs, it suffers from a fundamental limitation inherent to all dense architectures: **Global Parameter Sharing**.
 
@@ -918,7 +918,7 @@ $$
 J(\theta) = \mathbb{E}_{\tau \sim \pi_{\theta}} [R(\tau)]
 $$
 
-#### 4.3.4 Mathematical Alignment: The "Supervised" Shortcut
+#### 4.3.4 Mathematical Alignment: Supervised Proxy for RL
 
 To rigorously justify using Supervised Learning for a Reinforcement Learning problem, we start with the standard **Policy Gradient** derivation.
 
@@ -1050,12 +1050,12 @@ We recommend constructing different training mixtures for different deployment g
 
 Directly training a Generative Transformer on raw, high-negative (1:100) logs is notoriously difficult; the model tends to collapse, predicting `[SKIP]` for everything. To bridge the gap between "Generative Fluency" and "Discriminative Precision," we propose a **Two-Stage Curriculum**.
 
-**Stage 1: Generative Pre-training (The "Optimist" Phase)**
+**Stage 1: Generative Pre-training (Structural Learning Phase)**
 *   **Data Ratio**: High Positive (e.g., 1:1 or 1:2).
 *   **Goal**: Learn the "Syntax" of item codes and basic user affinity. The model learns valid item transitions and semantic clusters.
 *   **Scope**: Full model training.
 
-**Stage 2: Discriminative Fine-tuning (The "Realist" Phase)**
+**Stage 2: Discriminative Fine-tuning (Ranking Alignment Phase)**
 *   **Data Ratio**: Progressively shift towards reality (Curriculum: 1:2 $\to$ 1:5 $\to$ 1:10).
 *   **Goal**: Learn the subtle boundary between "Relevant" and "Clickable."
 *   **Efficient Tuning Strategy**: To prevent Catastrophic Forgetting (where the model forgets how to generate valid items), we can apply **Parameter-Efficient Fine-Tuning (PEFT)**.
@@ -1144,7 +1144,7 @@ $$ q_3 = \text{GumbelTop1}( \text{Projector}_3(H_2), \mathcal{C}_3 ) $$
 
 $$ \mathcal{L} = \| \text{StopGrad}(q_1+q_2+q_3) - \text{TargetItem} \| + \mathcal{L}_{\text{Hierarchy}} $$
 
-### 5.3 The Three "Death Traps" (Why this is hard)
+### 5.3 Key Optimization Challenges
 
 While theoretically elegant, this approach faces three formidable optimization challenges that explain why it has not yet replaced RQ-KMeans:
 
@@ -1156,9 +1156,9 @@ While theoretically elegant, this approach faces three formidable optimization c
 *   **The Phenomenon**: Without strong geometric constraints, the model may not obey the "Coarse $\to$ Fine" hierarchy. $q_1$ might learn nothing, leaving $q_3$ to do all the work, or vice versa.
 *   **The Result**: The multi-stage structure becomes redundant. The vectors do not form a meaningful residual chain ($y \approx q_1 + q_2 + q_3$), making the discrete codes semantically meaningless.
 
-**3. The Indexability Crisis (The Inference Nightmare)**
+**3. The Indexability Problem**
 *   **The Problem**: In RQ-KMeans, every item has a fixed ID `[12, 55, 9]`. We can build an inverted index. In this Latent approach, the "Code" is a dynamic activation of the User Tower.
-*   **The Consequence**: To retrieve an item, we must know its dynamic code. This requires training a **Dual-Tower VQ-VAE** (an Item Tower that mimics the User Tower's tokenization), adding massive complexity to ensure the two towers stay aligned.
+*   **The Consequence**: To retrieve an item, we must know its dynamic code. This requires training a **Dual-Tower VQ-VAE** (an Item Tower that mimics the User Tower's tokenization), adding complexity to ensure the two towers stay aligned.
 
 ### 5.4 Path Forward: The "Hierarchy Guarantee" Protocol
 
