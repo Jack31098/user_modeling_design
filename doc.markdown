@@ -361,7 +361,7 @@ graph LR
 **Learnable Parameters**
 
 *   **Codebook $\mathcal{C}^{(l)}$**: A matrix of size $M \times D$, containing $M$ learnable residual prototypes.
-$$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
+    $$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
 
 *   **Routing MLP $f_{\theta}^{(l)}$**: A neural network (e.g., Linear $\to$ ReLU $\to$ Linear) that maps the fused state to the codebook metric space.
 
@@ -570,10 +570,78 @@ The architecture diagram above illustrates the transformation from raw history t
 
 ### 4.1 The Enhancement: Contextualized Residuals
 
-Before moving to the generative paradigm, we must first address the limitation of static item embeddings. A globally shared embedding table cannot capture the nuanced, personalized meaning of an item for different users.
+Before moving to the generative paradigm, we must first address the limitation of static item embeddings. A globally shared embedding table cannot capture the nuanced, personalized meaning of an item for different users. We introduce a **Learnable Residual Branch** modulated by the user context.
 
-To be populated.
-(Details on the Gating Mechanism $g$ and the residual formula $E_{res} = g \cdot E_{id} + (1-g) \cdot (W \cdot E_{user})$. This provides the parameter capacity needed for accurate Action Prediction).
+#### 4.1.1 Motivation: Dynamic Parameter Capacity
+Static item embeddings (from contrastive pre-training) are excellent for semantic retrieval but lack the **Discriminative Capacity** needed for the fine-grained Action Prediction task (Section 4.3). To solve this, we add a learnable embedding space that is dynamically gated by the user profile.
+
+#### 4.1.2 Architecture: Gated Residual Modulation
+
+The final item representation $E_{final}$ is a fusion of the static base and a personalized learnable component:
+
+$$ E_{final} = (1 - g) \cdot E_{static} + g \cdot E_{learnable} $$
+
+Where:
+*   $E_{static}$: The frozen pre-trained item embedding (Semantic Foundation).
+*   $E_{learnable}$: A separate, trainable embedding table (Discriminative Capacity).
+*   $g$: A scalar gating factor, $g \in [0, 1]$.
+
+**The Gating Mechanism**
+The gate $g$ determines how much "personalization" or "task-specific bias" to inject. It acts as a **Feature-wise Linear Modulation (FiLM)** controller.
+
+$$ g = \sigma( \text{MLP}( \text{Concat}( \text{StopGrad}(U_{profile}), E_{static} ) ) ) $$
+
+*   **Input**: It observes both the User Profile ($U_{profile}$, derived from Q-Former tokens) and the Item's intrinsic properties ($E_{static}$).
+*   **Stop Gradient**: Crucially, we apply `StopGradient` to $U_{profile}$. We do **not** want the auxiliary action prediction task to drift the stable user profile learned in Phase 1. The user profile is used purely as a **Condition/Context** to select the item representation.
+*   **Initialization**: The MLP producing $g$ must be initialized such that $g \approx 0$ at the start. This ensures the training begins with the stable semantic space and gradually introduces the learnable discriminative components, preventing early training instability.
+
+```mermaid
+graph TB
+    classDef frozen fill:#e0f7fa,stroke:#006064,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef learnable fill:#fff9c4,stroke:#fbc02d,stroke-width:3px;
+    classDef operation fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+
+    subgraph Contextualized_Residue_Block [Contextualized Item Embedding Block]
+        direction TB
+
+        %% Inputs
+        User[User Profile Tokens<br>(from Phase 1)]:::frozen
+        ItemID[Item ID]:::frozen
+
+        %% Branches
+        subgraph Static_Branch [Static Semantic Branch]
+            E_static[E_static<br>(Frozen Pre-trained)]:::frozen
+        end
+
+        subgraph Learnable_Branch [Dynamic Capacity Branch]
+            E_learnable[E_learnable<br>(Trainable Table)]:::learnable
+        end
+
+        %% Gating Network
+        subgraph Gating_Net [Gating Controller]
+            StopGrad(("&perp; Stop Gradient")):::operation
+            Concat([Concat])
+            MLP_Gate["MLP &sigma;<br>(Init close to 0)"]:::learnable
+            Gate_Val["Gate g"]:::operation
+        end
+
+        %% Flow
+        User --> StopGrad --> Concat
+        ItemID --> E_static --> Concat
+        ItemID --> E_learnable
+
+        Concat --> MLP_Gate --> Gate_Val
+
+        %% Fusion
+        Fusion(("(1-g)*Static + g*Learnable")):::operation
+        E_final[Final Contextualized<br>Item Embedding]:::operation
+
+        E_static --> Fusion
+        E_learnable --> Fusion
+        Gate_Val -.->|Modulates| Fusion
+        Fusion --> E_final
+    end
+```
 
 ### 4.2 The Foundation: Robust Discretization (RQ-KMeans)
 
