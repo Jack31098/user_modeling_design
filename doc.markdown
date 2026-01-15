@@ -157,7 +157,8 @@ The User Tower is pre-trained using a multi-task objective designed to ensure bo
 
 **Task A: Image-Text Contrastive Loss (ITC)**
 *   **Objective**: Aligns the user profile (Query Tokens) with the representation of the positive future item (target).
-*   **Mechanism**: A contrastive loss maximizes the similarity between the user's updated query tokens and the target item embedding, while pushing away negatives. This directly optimizes for the **Action Alignment** principle.
+*   **Mechanism**: A contrastive loss maximizes the similarity between the user's updated query tokens and the target item embedding.
+*   **Why Only Positives?**: We strictly use only positive interactions (Clicks/Purchases) for the User Profile. The goal of this phase is to capture **Potential Interest** (Recall), not **Action Probabilities** (Ranking). Including negatives here would pollute the semantic space, risking the "retrieval of dislikes." The rigorous discrimination between Click vs. Skip (Action Alignment) is explicitly deferred to the **Dynamic Generative Layer (Chapter 4)**, which conditions on this stable profile.
 
 **Task B: Masked Modeling (Reconstruction)**
 *   **Objective**: Ensures the compressed query tokens retain all necessary information from the input history.
@@ -171,18 +172,22 @@ A critical challenge in single-vector models (like Pinformer) is the conflict be
 
 When compressed into a single vector, these opposing gradients lead to a **"Blurred Average"** that is neither sharp nor complete.
 
-**Solution: Sparsity in Set Space**
-By using a set of $M$ tokens, Q-Former allows these objectives to be satisfied **orthogonally across different tokens**, utilizing the "Soft Sparsity" of the attention mechanism:
-1.  **Specialization via Task B**: The Masked Modeling loss acts as a **Diversity Regularizer**, penalizing "Mode Collapse" (where all tokens learn the same recent interest). It forces specific tokens to specialize in encoding long-tail history (which Task A would otherwise discard).
-2.  **Alignment via Task A**: The ITC loss then tunes specific tokens to align with potential future interests.
-3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ may capture **Dominant Interests** (e.g., "Running Shoes", High Task A utility), while $Token_{B}$ captures **Niche/Long-Tail Interests** (e.g., "Climbing Carabiners", High Task B utility), ensuring the static profile remains sharp across the full spectrum of user preferences.
+**Solution: Sparsity in Set Space (with Explicit Diversity)**
+By using a set of $M$ tokens, Q-Former allows these objectives to be satisfied across different tokens. However, to prevent **Mode Collapse** (where all tokens learn the same dominant feature), we rely on two mechanisms:
 
-### 3.2 Retrieval Approach A: Set Transformer (The Standard)
+1.  **Diversity Regularizer (Task B)**: The Masked Modeling loss forces the set to retain *all* historical details, implicitly discouraging tokens from discarding "niche" information that doesn't fit the majority gradient.
+2.  **Orthogonality Constraint (The "Hard" Guarantee)**: To explicitly enforce specialization, we add a penalty term to minimize the cosine similarity between query tokens: $\mathcal{L}_{orth} = \| Q_{out} \cdot Q_{out}^T - I \|_F$. This forces different tokens to span different subspaces of the user interest manifold. *(Note: Chapter 5.4 explores more advanced constraints like Entropy Maximization).*
 
-This section describes the standard industry baseline for utilizing the Q-Former's output.
+3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ captures **Dominant Interests** (High Task A utility), while $Token_{B}$ captures **Niche Interests** (High Task B utility).
 
-**The Aggregation Bottleneck**
-The Q-Former outputs a set of $M$ diverse tokens $Q_{out} = \{q_1, \dots, q_M\}$. To perform standard Two-Tower retrieval (which requires a single vector dot-product), these tokens must be aggregated.
+### 3.2 Retrieval Approach A: Single-Vector Baseline (The Compatibility Mode)
+
+This section describes the standard industry implementation. It serves as a **compatibility bridge** to utilize the advanced Q-Former encoder within legacy ANN infrastructure.
+
+**The Aggregation Bottleneck (The Conscious Compromise)**
+The Q-Former outputs a set of $M$ diverse tokens $Q_{out} = \{q_1, \dots, q_M\}$. However, standard vector databases require a single query vector. To function within these constraints, we must apply an aggregation layer.
+
+**Note**: We explicitly acknowledge that this step **re-introduces the "Average Embedding Trap"** (Section 1.2). We implement it here primarily to establish a performance floor and to demonstrate compatibility with standard Two-Tower systems before introducing the true solution in Section 3.3.
 
 **Architecture: Set Transformer + Attention Pooling**
 We employ a Set Transformer layer followed by an Attention Pooling mechanism (using a learnable `[CLS]` token or weighted sum) rather than simple Mean Pooling.
@@ -273,8 +278,12 @@ graph TB
 *   **Why Attention Matters**: As established in 3.1.3, the tokens in $Q_{out}$ are highly specialized. Simple averaging would mix $Token_{hot}$ (strong signal) with $Token_{cold}$ (noise for the current query), destroying the retrieval signal.
 *   **The Soft-Sparsity Effect**: The Attention Pooling layer learns to dynamically assign high weights to the most relevant tokens for the *general* retrieval task, effectively "selecting" the best prototype from the set.
 
-**Limitations**
-While this approach is better than a simple MLP, it still forces the multi-modal user interest into a **Single Point** in the embedding space for the final retrieval step. This fundamentally limits the ability to retrieve items from disparate categories simultaneously (e.g., retrieving both "Shoes" and "Watches" in one pass if they lie in different directions). This limitation motivates the multi-path approach in Section 3.3.
+**Critique: Why this is strictly a Baseline**
+While this approach outperforms simple MLPs (thanks to the Q-Former's better feature extraction), the final aggregation step acts as an information bottleneck that **violates the "Sharpness" principle**.
+
+By forcing multi-modal user interests (captured perfectly in the $M$ tokens) back into a **Single Point**, we inevitably blur distinct modes (e.g., merging "Hiking" and "Coding" into a generic centroid). This confirms that optimizing the Encoder alone is insufficient; to truly solve the "Average Embedding Trap," we must fundamentally alter the **Retrieval Head** itself.
+
+This motivation leads directly to the **Conditional Residual Beam Retrieval (CRBR)** in Section 3.3.
 
 ### 3.3 Retrieval Approach B: Conditional Residual Beam Retrieval (CRBR)
 
