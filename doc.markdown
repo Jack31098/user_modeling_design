@@ -1,7 +1,8 @@
 # User Modeling & Retrieval System Design
 
-**Target System**: High-Performance Two-Tower Retrieval  
-**Core Model**: Conditional Residual Beam Retrieval (CRBR)
+> **Author**: Minzhe Zhou  
+> **Date**: 01/12/2025  
+> **GitHub**: [https://github.com/Jack31098](https://github.com/Jack31098)
 
 ## 1. Background: The Four Critical Flaws of Standard Sequential Models
 
