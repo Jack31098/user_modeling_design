@@ -943,12 +943,15 @@ Initialize the sequence with the User Q-Former tokens (System Prompt) and recent
 Append a target **Action Token** to the sequence (e.g., `[CLICK]`). This conditions the model to generate only items that maximize the probability of this specific action.
 
 **Step 3: Hierarchical Decoding (Beam Search)**
-The model generates the item codes sequentially:
-1.  **Level 1**: Predict top-k $c_1$ codes conditioned on the `[CLICK]` token.
-2.  **Level 2**: For each $c_1$, predict top-k $c_2$ codes.
-3.  **Level 3**: For each sequence $(c_1, c_2)$, predict top-k $c_3$ codes.
+The model generates the item codes sequentially. Crucially, to ensure the generated tuple $(c_1, c_2, c_3)$ corresponds to a valid item in the RQ-KMeans tree, we must apply **Valid Path Masking**:
 
-This hierarchical search allows the model to refine its prediction from coarse categories (e.g., "Shoes") to specific attributes (e.g., "Red") to precise items (e.g., "Nike Air Max"), ensuring semantic consistency.
+1.  **Level 1**: Predict top-k $c_1$ codes conditioned on the `[CLICK]` token.
+2.  **Level 2**: For each $c_1$, predict top-k $c_2$ codes. **Masking**: Set logits of all $c_2$ that are not children of $c_1$ to $-\infty$.
+3.  **Level 3**: For each sequence $(c_1, c_2)$, predict top-k $c_3$ codes. **Masking**: Restrict to valid children of $c_2$.
+
+This hierarchical search allows the model to refine its prediction from coarse categories to precise items.
+
+*   **Engineering Note (KV Cache)**: Since the history sequence is long and static during the decoding of the 3 codes, utilizing **KV Cache** is mandatory to prevent re-computing the attention map for the entire history at each step $c_1 \to c_2 \to c_3$.
 
 **Step 4: Decode & Deduplicate**
 Convert the generated code tuples $(c_1, c_2, c_3)$ back into Item IDs using the RQ-KMeans codebook lookup. Remove duplicates and items already in the user's history.
