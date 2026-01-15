@@ -964,6 +964,7 @@ If the training data is dominated by negative interactions (which is true in rea
 **2. Calibration Requirement**
 The probability predicted by the model $P_{\text{model}}(Action)$ is heavily dependent on the training sampling ratio $\alpha = \frac{N_{pos}}{N_{neg}}$.
 To use the model for **Ranking** (predicting precise CTR), we must calibrate the output logit back to the real-world distribution using the standard log-odds correction:
+
 $$ \text{Logit}_{\text{real}} = \text{Logit}_{\text{model}} - \log(\alpha) $$
 
 **3. Task-Specific Construction**
