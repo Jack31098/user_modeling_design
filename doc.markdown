@@ -710,9 +710,9 @@ The core issue with standard Euclidean residual ($r = x - c$) on spherical data 
 
 ### 4.3 The Architecture: Generative Action Transformer
 
-With the Item Discretization (Ch 4.2) complete, we have transformed the continuous retrieval problem into a discrete sequence generation problem. Theoretically, we could now simply train a standard Decoder-only Transformer (like GPT) to predict the next item code: 
+With the Item Discretization (Ch 4.2) complete, we have transformed the continuous retrieval problem into a discrete sequence generation problem. Theoretically, we could now simply train a standard Decoder-only Transformer (like GPT) to predict the next item code:
 
-$P(\text{Item}_{t} \mid \text{Item}_{<t})$.
+$$ P(\text{Item}_{t} \mid \text{Item}_{<t}) $$
 
 **However, simple "Next Item Prediction" is insufficient.**
 It treats all history interactions equally (ignoring whether the user clicked, purchased, or skipped) and conflates "Semantic Similarity" with "User Preference." To fulfill our North Star principles of **Action Alignment** and **Controllability**, we must move beyond simple co-occurrence modeling.
