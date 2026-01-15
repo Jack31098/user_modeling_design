@@ -710,22 +710,24 @@ We introduce the **Generative Action Transformer**, which fundamentally alters t
 
 #### 4.3.1 Action Tokens: The Syntax of Intent
 
-The core innovation is to treat the User Action (e.g., `[CLICK]`, `[CART]`, `[SKIP]`) as a first-class token in the vocabulary, distinct from the Item itself. This seemingly simple change unlocks three powerful capabilities by decomposing the joint probability distribution:
+The core innovation is to treat the User Action (e.g., `[CLICK]`, `[CART]`, `[SKIP]`) as a first-class token in the vocabulary, distinct from the Item itself. This seemingly simple change unlocks three powerful capabilities by decomposing the joint probability distribution.
+
+Let the user history at step $t$ be $H_t = \{(I_1, A_1), \dots, (I_{t-1}, A_{t-1})\}$.
 
 **1. Discriminative Capability (Ranking Power)**
-*   **Formula**: $P(\text{Action} \mid \text{History}, \text{Next Item})$
-*   **Mechanism**: Given a user's history and a potential candidate item, the model predicts the *interaction*.
+*   **Formula**: $P(A_t \mid H_t, I_t)$
+*   **Mechanism**: Given a user's history $H_t$ and a potential candidate item $I_t$, the model predicts the *interaction* $A_t$.
 *   **Why it matters**: This allows the generative model to learn from **Negative Feedback**. A "Skip" is no longer just "not present in data"—it is an explicit training signal. The model learns *why* a user might reject an item, granting it the precision of a discriminator.
 
 **2. Generative Capability (Retrieval Power)**
-*   **Formula**: $P(\text{Next Item} \mid \text{History}, \text{Action})$
-*   **Mechanism**: Given a history and a *target action* (e.g., `[CLICK]`), the model generates the most likely item to trigger that action.
+*   **Formula**: $P(I_t \mid H_t, A_t)$
+*   **Mechanism**: Given a history $H_t$ and a *target action* (e.g., $A_t=$ `[CLICK]`), the model generates the most likely item $I_t$ to trigger that action.
 *   **Why it matters**: This aligns retrieval with business goals. We don't just want "semantically similar items"; we want "items the user will click."
 
 **3. Controllable Capability (Steering Power)**
-*   **Formula**: $P(\text{Next Item} \mid \text{History}, \text{Virtual Seed}, \text{Positive Action})$
-*   **Mechanism**: At inference time, we can inject a "Virtual Seed" (e.g., a specific category token or a `[RE-BUY]` prompt) followed by a `[CLICK]` token.
-*   **Why it matters**: This enables **Conditional Generation**. We can steer the model to "Find me something similar to X that the user will Click," effectively turning the retrieval system into a controllable engine without retraining.
+*   **Formula**: $P(I_{target} \mid H_t, I_{seed}, A_{positive})$
+*   **Mechanism**: At inference time, we can inject a "Virtual Seed" item $I_{seed}$ (e.g., a specific category anchor) followed by a positive action $A_{positive}$ (e.g., `[CLICK]`).
+*   **Why it matters**: This enables **Conditional Generation**. We can steer the model to "Find me something similar to $I_{seed}$ that the user will Click," effectively turning the retrieval system into a controllable engine without retraining.
 
 #### 4.3.2 High-Level Architecture
 
