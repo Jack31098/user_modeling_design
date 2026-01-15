@@ -17,7 +17,7 @@ To balance **Architecture Innovation** with **Engineering ROI**, we propose a st
 
 | Phase | Goal (ROI) | Architecture Change | Engineering Cost | Risk |
 | :--- | :--- | :--- | :--- | :--- |
-| **Phase 1: Encoder Upgrade (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
+| **Phase 1: Encoder Upgrade (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (PinnerFormer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
 | **Phase 2: Dynamic Routing** | **Fix the Long-Tail**. Boost engagement for niche/inactive users who currently get generic recs. | **Deploy CRBR Head** (Ch 3.3). Conditional routing for diverse user groups. | Medium. Requires updating Serving Logic to support multi-vector. | Medium |
 | **Phase 3: Generative Paradigm** | **Next-Gen Retrieval**. Unify Retrieval & Pre-Ranking. Generate high-precision candidates aligned with "Click" intent. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High. Requires iteration on item representation learning | High |
 
@@ -25,11 +25,11 @@ To balance **Architecture Innovation** with **Engineering ROI**, we propose a st
 
 ## 1. Background: The Four Critical Flaws of Standard Sequential Models
 
-**(Critique of Pinformer Architecture)**
+**(Critique of PinnerFormer Architecture)**
 
-Sequential recommenders like Pinformer (Pinterest Transformer) and SASRec have long served as the industry standard for user modeling. However, they rely on a dense, symmetric attention mechanism designed originally for NLP tasks, which creates inherent structural bottlenecks when applied to massive, long-term user behavior sequences. This chapter rigorously analyzes why these incumbents fail to meet modern industrial requirements, isolating four specific structural flaws that limit their scalability and expressiveness.
+Sequential recommenders like **PinnerFormer** [5] (Pinterest Transformer) and SASRec have long served as the industry standard for user modeling. However, they rely on a dense, symmetric attention mechanism designed originally for NLP tasks, which creates inherent structural bottlenecks when applied to massive, long-term user behavior sequences. This chapter rigorously analyzes why these incumbents fail to meet modern industrial requirements, isolating four specific structural flaws that limit their scalability and expressiveness.
 
-![Pinformer achitecture](https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/pinformer.png)
+![PinnerFormer achitecture](https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/pinformer.png)
 
 ### 1.1 Issue 1: The Computational Efficiency Wall
 
@@ -412,7 +412,7 @@ graph LR
 **Learnable Parameters**
 
 *   **Codebook $\mathcal{C}^{(l)}$**: A matrix of size $M \times D$, containing $M$ learnable residual prototypes.
-    $$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
+$$\mathcal{C}^{(l)} = \{c_1, c_2, \dots, c_M\}, \quad \text{where } c_j \in \mathbb{R}^D$$
 
 *   **Routing MLP $f_{\theta}^{(l)}$**: A neural network (e.g., Linear $\to$ ReLU $\to$ Linear) that maps the fused state to the codebook metric space.
 
@@ -437,11 +437,11 @@ The process is divided into a shared Affinity Computation, followed by divergent
 For each active path $k \in \{1, \dots, B\}$, we compute the compatibility distribution over the codebook entries.
 
 1.  **Conditional Projection**: Determine the search direction based on the current position ($v$) and intent ($Q$).
-    $$h_k = f_{\theta}^{(l)}( \text{Concat}(Q, v_{k}^{(l-1)}) )$$
+$$h_k = f_{\theta}^{(l)}( \text{Concat}(Q, v_{k}^{(l-1)}) )$$
 
 2.  **Logit Computation**: Compute the dot-product similarity with all $M$ entries in the codebook.
-    $$z_{k} = h_k \cdot (\mathcal{C}^{(l)})^\top$$
-    Where $z_{k} \in \mathbb{R}^M$, and $z_{k,j}$ represents the raw affinity score for the $j$-th code.
+$$z_{k} = h_k \cdot (\mathcal{C}^{(l)})^\top$$
+Where $z_{k} \in \mathbb{R}^M$, and $z_{k,j}$ represents the raw affinity score for the $j$-th code.
 
 **Step 2: Branching Strategy**
 
@@ -451,11 +451,11 @@ To allow gradient backpropagation through the discrete selection, we employ the 
 
 *   **Gumbel Noise Injection**: Sample $g_j \sim \text{Gumbel}(0, 1)$ i.i.d. for each code $j$.
 *   **Soft Selection Probabilities**:
-    $$\pi_{k,j} = \frac{\exp( (z_{k,j} + g_j) / \tau )}{\sum_{m=1}^{M} \exp( (z_{k,m} + g_m) / \tau )}$$
+$$\pi_{k,j} = \frac{\exp( (z_{k,j} + g_j) / \tau )}{\sum_{m=1}^{M} \exp( (z_{k,m} + g_m) / \tau )}$$
 *   **Soft Residual Extraction**:
-    $$r_{k}^{(l)} = \sum_{j=1}^{M} \pi_{k,j} \cdot c_j$$
+$$r_{k}^{(l)} = \sum_{j=1}^{M} \pi_{k,j} \cdot c_j$$
 *   **State Update**:
-    $$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
+$$v_{k}^{(l)} = v_{k}^{(l-1)} + r_{k}^{(l)}$$
 
 **Mode B: Inference (Beam Search)**
 
