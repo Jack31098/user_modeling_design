@@ -656,22 +656,30 @@ To unify recommendation with generative modeling, we must first map the continuo
 
 #### 4.2.1 Motivation: Why Residuals Are Not Enough
 While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
-Industry consensus (e.g., TIGER, RQ-VAE) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
+Industry consensus (e.g., TIGER, OneRec) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
 
 #### 4.2.2 The Geometric Prerequisite: Codebook Health
-The success of RQ-KMeans depends entirely on the geometric quality of the input embeddings. "Garbage in, garbage out" is the rule. We rigorously monitor three health indicators:
 
-1.  **Isotropy (The Sphere Check)**:
-    *   *Problem*: If embeddings cluster in a narrow cone (Anisotropy), KMeans centroids will collapse, leading to low resolution.
-    *   *Requirement*: Embeddings must be uniformly distributed on the hypersphere. We enforce this via `Temperature Scaling` and `L2 Normalization` during pre-training.
+The success of RQ-KMeans depends entirely on the geometric quality of the input embeddings. "Garbage in, garbage out" is the rule. Instead of listing dry metrics, we must understand the core intuition: **Does the Residual have Structure?**
 
-2.  **Hubness (The Bully Check)**:
-    *   *Problem*: "Hub" items (nearest neighbors to everyone) hijack the quantization, causing "Dead Codes" (centroids that are never used).
-    *   *Requirement*: The variance of the nearest-neighbor count must be low.
+**The Core Intuition: Residual Structure (Signal vs. Noise)**
+RQ-KMeans assumes that a vector can be decomposed hierarchically: $x \approx c_1 + c_2 + c_3$. This implies that after subtracting the coarse centroid $c_1$, the remaining residual $r_1 = x - c_1$ is **not just random noise**, but contains finer-grained semantic information that can be further clustered.
+*   *The Risk*: If the embeddings lack this hierarchical structure, the first quantization layer captures all the information, and subsequent layers essentially "quantize noise," producing tokens with high entropy but zero retrieval utility.
 
-3.  **Local Linearity (The Residual Check)**:
-    *   *Problem*: RQ-KMeans assumes $x \approx c_1 + c_2 + c_3$. This additive assumption fails in highly non-linear manifolds.
-    *   *Requirement*: The manifold must be locally linear enough for residual decomposition to hold semantic meaning.
+To ensure this "Structure" exists, we rigorously monitor three geometric indicators:
+
+1.  **Residual Energy Decay (The Hierarchy Check)**:
+    *   *Intuition*: As we go deeper (Layer 1 $\to$ Layer 3), the magnitude of the residual vector should decay, but not too abruptly (implies no depth) nor too slowly (implies non-convergence).
+    *   *Requirement*: A healthy **Energy Ratio** ensures that deeper layers contribute progressively finer details (Coarse-to-Fine) rather than orthogonal noise.
+
+2.  **Isotropy (The Global vs. Local Paradox)**:
+    *   *The Paradox*: We need **Global Isotropy** (embeddings should uniformly occupy the hypersphere) to ensure all codes in the Layer 1 codebook are utilized (Entropy Maximization). However, we simultaneously need **Local Anisotropy** (Structure).
+    *   *Why*: If the local distribution around a centroid is perfectly uniform (like white noise), the residual $r = x - c$ contains no semantic clusters, and the next quantization layer fails.
+    *   *Requirement*: The ideal manifold is **Fractal**: globally uniform to maximize capacity, but locally clustered to enable hierarchical decomposition. We strictly avoid "Cone Collapse" (bad global isotropy) while ensuring sufficient local density for residuals.
+
+3.  **Hubness (The Bully Check)**:
+    *   *Intuition*: A "healthy" residual space has no dictators. If one centroid is the nearest neighbor to 90% of residuals, it creates a "Hub," rendering the codebook useless (Dead Codes).
+    *   *Requirement*: The variance of the nearest-neighbor count must be low, ensuring all tokens in the vocabulary are actively utilized.
 
 #### 4.2.3 Solution: Producing "Quantizable" Embeddings
 To generate embeddings suitable for tokenization, we employ a strict training protocol before quantization:
