@@ -715,18 +715,18 @@ The core innovation is to treat the User Action (e.g., `[CLICK]`, `[CART]`, `[SK
 Let the sequence of interactions up to time $t$ be pairs of $(I_k, A_k)$.
 
 **1. Discriminative Capability (Ranking Power)**
-*   **Formula**: $P(A_t \mid I_{1:t}, A_{1:t-1})$
-*   **Mechanism**: Given the full history of items and actions, plus the *current candidate item* $I_t$, the model predicts the *interaction* $A_t$.
+*   **Formula**: $P(A_t \mid H_t, I_t)$
+*   **Mechanism**: Given a user's history $H_t$ and a potential candidate item $I_t$, the model predicts the *interaction* $A_t$.
 *   **Why it matters**: This allows the generative model to learn from **Negative Feedback**. A "Skip" is no longer just "not present in data"—it is an explicit training signal. The model learns *why* a user might reject an item, granting it the precision of a discriminator.
 
 **2. Generative Capability (Retrieval Power)**
-*   **Formula**: $P(I_t \mid I_{1:t-1}, A_{1:t})$
-*   **Mechanism**: Given history and the *current target action* $A_t$ (e.g., `[CLICK]`), the model generates the most likely item $I_t$ to trigger that action.
+*   **Formula**: $P(I_t \mid H_t)$
+*   **Mechanism**: Given a history $H_t$ and a *target action* (e.g., $A_t=$ `[CLICK]`), the model generates the most likely item $I_t$ to trigger that action.
 *   **Why it matters**: This aligns retrieval with business goals. We don't just want "semantically similar items"; we want "items the user will click."
 
 **3. Controllable Capability (Steering Power)**
-*   **Formula**: $P(I_{target} \mid I_{1:t-1}, A_{1:t-1}, I_{seed}, A_{positive})$
-*   **Mechanism**: At inference time, we can inject a "Virtual Seed" item $I_{seed}$ followed by a positive action $A_{positive}$ (e.g., `[CLICK]`).
+*   **Formula**: $P(I_{target} \mid H_t, I_{seed}, A_{positive})$
+*   **Mechanism**: At inference time, we can inject a "Virtual Seed" item $I_{seed}$ (e.g., a specific category anchor) followed by a positive action $A_{positive}$ (e.g., `[CLICK]`).
 *   **Why it matters**: This enables **Conditional Generation**. We can steer the model to "Find me something similar to $I_{seed}$ that the user will Click," effectively turning the retrieval system into a controllable engine without retraining.
 
 #### 4.3.2 High-Level Architecture
