@@ -593,7 +593,7 @@ $$ g = \sigma( \text{MLP}( \text{Concat}( \text{StopGrad}(U_{profile}), E_{stati
 
 *   **Input**: It observes both the User Profile ($U_{profile}$, derived from Q-Former tokens) and the Item's intrinsic properties ($E_{static}$).
 *   **Stop Gradient**: Crucially, we apply `StopGradient` to $U_{profile}$. We do **not** want the auxiliary action prediction task to drift the stable user profile learned in Phase 1. The user profile is used purely as a **Condition/Context** to select the item representation.
-*   **Initialization**: The MLP producing $g$ must be initialized such that $g \approx 0$ at the start. This ensures the training begins with the stable semantic space and gradually introduces the learnable discriminative components, preventing early training instability.
+*   **Initialization (Crucial)**: Standard Sigmoid outputs 0.5 at zero input. To ensure $g \approx 0$ at the start (forcing the model to rely on the robust static base first), the bias of the MLP's final layer must be initialized to a large negative value (e.g., $b = -5.0$, yielding $g \approx 0.006$). This prevents early training instability and ensures a smooth curriculum from static to personalized embeddings.
 
 ```mermaid
 graph TB
@@ -605,7 +605,7 @@ graph TB
         direction TB
 
         %% Inputs
-        User[User Profile Tokens<br>(from Phase 1)]:::frozen
+        User["User Profile Tokens<br>(from Phase 1)"]:::frozen
         ItemID[Item ID]:::frozen
 
         %% Branches
