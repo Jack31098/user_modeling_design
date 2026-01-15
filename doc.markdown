@@ -689,6 +689,11 @@ graph LR
     ID2 --> Trans_Arrow2
     ID3 --> Trans_Arrow3
 
+    %% Connect Trans_Arrow to Token Subgraphs
+    Trans_Arrow1 --> T1
+    Trans_Arrow2 --> T2
+    Trans_Arrow3 --> T3
+
     %% 2. The New World
     subgraph Token_World ["Our World: Semantic Code Stream"]
         direction LR
