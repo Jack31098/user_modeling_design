@@ -600,35 +600,36 @@ graph TB
     classDef frozen fill:#e0f7fa,stroke:#006064,stroke-width:2px,stroke-dasharray: 5 5;
     classDef learnable fill:#fff9c4,stroke:#fbc02d,stroke-width:3px;
     classDef operation fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef input_node fill:#fff,stroke:#333,stroke-width:2px;
 
     subgraph Contextualized_Residue_Block [Contextualized Item Embedding Block]
         direction TB
 
         %% Inputs
         User["User Profile Tokens<br>(from Phase 1)"]:::frozen
-        ItemID[Item ID]:::frozen
+        ItemID[Item ID]:::input_node
+        E_static["Pre-trained Item Feature (E_static)"]:::frozen
 
-        %% Branches
-        subgraph Static_Branch [Static Semantic Branch]
-            E_static["E_static<br>(Frozen Pre-trained)"]:::frozen
-        end
-
+        %% Learnable Branch (The Focus)
         subgraph Learnable_Branch [Dynamic Capacity Branch]
-            E_learnable["E_learnable<br>(Trainable Table)"]:::learnable
+            direction TB
+            Lookup_Op{{"Embedding Lookup"}}:::learnable
+            E_learnable["E_learnable Vector"]:::learnable
+            
+            ItemID --> Lookup_Op --> E_learnable
         end
 
         %% Gating Network
         subgraph Gating_Net [Gating Controller]
             StopGrad(("&perp; Stop Gradient")):::operation
             Concat([Concat])
-            MLP_Gate["MLP &sigma;<br>(Init close to 0)"]:::learnable
+            MLP_Gate["MLP &sigma;<br>(Bias Init = -5.0)"]:::learnable
             Gate_Val["Gate g"]:::operation
         end
 
         %% Flow
         User --> StopGrad --> Concat
-        ItemID --> E_static --> Concat
-        ItemID --> E_learnable
+        E_static --> Concat
 
         Concat --> MLP_Gate --> Gate_Val
 
