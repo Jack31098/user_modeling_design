@@ -881,7 +881,40 @@ $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_
     *   **Role**: Unlike standard LLMs that use discrete input tokens, we use the rich, continuous representations modulated by the user gate. This allows the Transformer to "see" the personalized version of the item (e.g., "This shoe is a *Running* shoe for this user").
     *   *Note*: While the *Input* is continuous (for richness), the *Target* is discrete (for sharpness).
 
-### 4.4 Inference: Controllable Generation
+#### 4.3.3 Training Objectives
 
-To be populated.
-(Details on using Control Tokens at inference time to steer the generative process for specific business goals).
+The model is trained end-to-end using a multi-task objective that balances ranking accuracy (Action Prediction) with retrieval precision (Item Generation).
+
+**Total Loss Function**
+$$ \mathcal{L}_{Total} = \lambda_{act} \mathcal{L}_{Action} + \lambda_{item} \mathcal{L}_{Item} $$
+
+**1. Action Prediction Loss (Discriminative)**
+*   **Target**: The ground-truth action $A_t$ (e.g., Click, Skip).
+*   **Mechanism**: Standard Cross-Entropy loss over the small action vocabulary.
+    $$ \mathcal{L}_{Action} = - \sum_{t} \log P(A_t \mid H_t, I_t) $$
+*   **Role**: Forces the model to understand *user preference* given a specific item context.
+
+**2. Item Code Prediction Loss (Generative)**
+*   **Target**: The RQ-KMeans code tuple for Item $I_t$: $(c_{t,1}, c_{t,2}, c_{t,3})$.
+*   **Mechanism**: To maintain high inference speed, we do **not** unroll the codes into a longer sequence (which would triple the context length). Instead, we employ **Parallel Prediction Heads**.
+    The Transformer output state $h_t$ is projected into 3 independent codebook spaces simultaneously:
+    $$ \mathcal{L}_{Item} = - \sum_{t} \sum_{k=1}^{3} \log P(c_{t,k} \mid h_t) $$
+*   **Role**: Forces the model to generate the correct semantic "coordinates" of the next item. The hierarchical nature of RQ-KMeans ensures that even if fine-grained codes ($c_3$) are noisy, the coarse codes ($c_1$) provide a valid retrieval anchor.
+
+#### 4.3.4 Inference Process (The Generative Flow)
+
+During inference, we generate recommendations by simulating a conversation with the user profile.
+
+**Step 1: Context Setup**
+Initialize the sequence with the User Q-Former tokens (System Prompt).
+
+**Step 2: Intent Injection (The "Control" Step)**
+Append a target **Action Token** to the sequence (e.g., `[CLICK]`). This conditions the model to generate only items that maximize the probability of this specific action.
+*   *Note*: This bypasses the need to generate "Skip" items, effectively filtering the search space to high-value candidates.
+
+**Step 3: One-Shot Generation (Distilled Sampling)**
+Instead of running a heavy Beam Search for every token, we utilize the **Distilled Policy Head** (see 4.3.1 Engineering Note) to rapidly propose a set of candidate item codes $(c_1, c_2, c_3)$.
+*   **Parallel Decoding**: The 3 code levels are predicted in parallel, allowing for $O(1)$ generation complexity per item, regardless of code depth.
+
+**Step 4: Decode & Deduplicate**
+Convert the generated code tuples back into Item IDs using the RQ-KMeans codebook lookup. Remove duplicates and items already in the user's history.
