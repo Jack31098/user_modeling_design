@@ -17,7 +17,7 @@ To balance **Architecture Innovation** with **Engineering ROI**, we propose a st
 
 | Phase | Goal (ROI) | Architecture Change | Engineering Cost | Risk |
 | :--- | :--- | :--- | :--- | :--- |
-| **Phase 1: Encoder Upgrade (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (PinnerFormer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
+| **Phase 1: Encoder Upgrade (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
 | **Phase 2: Dynamic Routing** | **Fix the Long-Tail**. Boost engagement for niche/inactive users who currently get generic recs. | **Deploy CRBR Head** (Ch 3.3). Conditional routing for diverse user groups. | Medium. Requires updating Serving Logic to support multi-vector. | Medium |
 | **Phase 3: Generative Paradigm** | **Next-Gen Retrieval**. Unify Retrieval & Pre-Ranking. Generate high-precision candidates aligned with "Click" intent. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High. Requires iteration on item representation learning | High |
 
@@ -81,7 +81,7 @@ The proposed user modeling architecture is guided by three critical characterist
 
 ## 3. Two-Tower Retrieval Model
 
-Current industry standards like Pinformer typically operate on relatively short action sequences (e.g., the last 512 engagements). By attempting to encapsulate the user state into a single, rapidly evolving vector, these models fail to maintain a stable representation of long-term interests.
+Current industry standards like **PinnerFormer** typically operate on relatively short action sequences (e.g., the last 512 engagements). By attempting to encapsulate the user state into a single, rapidly evolving vector, these models fail to maintain a stable representation of long-term interests.
 
 In this design, we decouple the problem: this chapter focuses on modeling the **Stable User Profile**—the invariant core of a user's long-term history—using a Q-Former architecture. We explicitly exclude dynamic sequential modeling here; that aspect will be handled by a more advanced, specialized architecture in Chapter 4.
 
@@ -203,7 +203,7 @@ The User Tower is pre-trained using a multi-task objective designed to ensure bo
 
 #### 3.1.3 Theoretical Justification: The "Differentiation" Strategy
 
-A critical challenge in single-vector models (like Pinformer) is the conflict between the objectives of **Task A (ITC)** and **Task B (Masked Modeling)**.
+A critical challenge in single-vector models (like **PinnerFormer**) is the conflict between the objectives of **Task A (ITC)** and **Task B (Masked Modeling)**.
 *   **Task A (ITC)** pushes for **Selectivity**: It forces the representation to discard historical details to align tightly with the immediate future item (for retrieval sharpness).
 *   **Task B (Masked Modeling)** pushes for **Preservation**: It forces the representation to retain all historical details to reconstruct the past (for profile completeness).
 
