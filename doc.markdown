@@ -723,7 +723,8 @@ Let the interleaved user history at step $t$ be defined as $H_t = [I_0, A_0, I_1
 *   **Formula**: $P(I_t, A_t \mid H_t)$
 *   **Mechanism**: The model learns the joint distribution of the next interaction pair. For retrieval, we specifically target the conditional probability $P(I_t \mid H_t, A_t=\text{[CLICK]})$.
 *   **Why it matters**: This aligns retrieval with business goals. We effectively filter the generative beam to focus only on items that lead to positive outcomes.
-*   **Engineering Note**: For high-performance serving, we can **distill** this conditional distribution into a lightweight Policy Network or Sampler Head, avoiding the full autoregressive cost during candidate generation.
+*   **Engineering Note (The Distillation Sampler)**: A naive implementation would require Rejection Sampling: generating items and then checking if the predicted action is positive. This is inefficient as negative interactions dominate the training data.
+    To solve this, we **distill** a lightweight Policy Network (Sampler Head) specifically trained to approximate $P(I_t \mid H_t, A_t=\text{[CLICK]})$. This allows "One-Shot" generation of positive candidates during inference, bypassing the heavy autoregressive loop and rejection overhead.
 
 **3. Controllable Capability (Steering Power)**
 *   **Formula**: $P(I_{target} \mid H_t, I_{seed}, A_{positive})$
