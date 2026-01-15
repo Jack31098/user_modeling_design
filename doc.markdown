@@ -1063,21 +1063,21 @@ We envision a **Residual Routing Transformer** that progressively refines the us
 
 Let $H_0$ be the initial user history embedding. The model generates a sequence of latent query tokens $q_1, q_2, q_3$:
 
-1.  **Layer 1 (Coarse Intent)**:
+**Layer 1 (Coarse Intent)**
 
-    $$ q_1 = \text{GumbelTop1}( \text{Projector}_1(H_0), \mathcal{C}_1 ) $$
-    $$ H_1 = \text{TransformerBlock}(H_0, q_1) $$
+$$ q_1 = \text{GumbelTop1}( \text{Projector}_1(H_0), \mathcal{C}_1 ) $$
+$$ H_1 = \text{TransformerBlock}(H_0, q_1) $$
 
-2.  **Layer 2 (Fine Intent)**:
+**Layer 2 (Fine Intent)**
 
-    $$ q_2 = \text{GumbelTop1}( \text{Projector}_2(H_1), \mathcal{C}_2 ) $$
-    $$ H_2 = \text{TransformerBlock}(H_1, q_2) $$
+$$ q_2 = \text{GumbelTop1}( \text{Projector}_2(H_1), \mathcal{C}_2 ) $$
+$$ H_2 = \text{TransformerBlock}(H_1, q_2) $$
 
-3.  **Layer 3 (Precise Item)**:
+**Layer 3 (Precise Item)**
 
-    $$ q_3 = \text{GumbelTop1}( \text{Projector}_3(H_2), \mathcal{C}_3 ) $$
+$$ q_3 = \text{GumbelTop1}( \text{Projector}_3(H_2), \mathcal{C}_3 ) $$
 
-**Training Objective**:
+**Training Objective**
 
 $$ \mathcal{L} = \| \text{StopGrad}(q_1+q_2+q_3) - \text{TargetItem} \| + \mathcal{L}_{\text{Hierarchy}} $$
 
