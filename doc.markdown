@@ -669,60 +669,72 @@ graph LR
     classDef raw_item fill:#eeeeee,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5;
     classDef token_group fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
     classDef vocab_note fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-
-    %% 1. The Old World
-    subgraph Raw_World ["Standard World: Infinite ID Stream"]
-        direction LR
-        ID1["Item #10492<br>(Nike Air)"]:::raw_item
-        ID2["Item #88210<br>(Adidas Boost)"]:::raw_item
-        ID3["Item #99999<br>(Unknown)"]:::raw_item
-        
-        ID1 -.-> ID2 -.-> ID3
-    end
-
-    %% Transformation
-    Trans_Arrow1((&darr;<br>RQ-KMeans))
-    Trans_Arrow2((&darr;<br>RQ-KMeans))
-    Trans_Arrow3((&darr;<br>RQ-KMeans))
-    
-    ID1 --> Trans_Arrow1
-    ID2 --> Trans_Arrow2
-    ID3 --> Trans_Arrow3
-
-    %% 2. The New World
-    subgraph Token_World ["Our World: Semantic Code Stream"]
-        direction LR
-        
-        subgraph T1 ["Item 1 Tokens"]
-            direction TB
-            C1_1["Code 4: SHOES"]
-            C1_2["Code 12: SPORT"]
-            C1_3["Code 8: RED"]
-        end
-        
-        subgraph T2 ["Item 2 Tokens"]
-            direction TB
-            C2_1["Code 4: SHOES"]
-            C2_2["Code 12: SPORT"]
-            C2_3["Code 2: BLUE"]
-        end
-        
-        subgraph T3 ["Item 3 Tokens"]
-            direction TB
-            C3_1["Code 9: HAT"]
-            C3_2["Code 1: SUMMER"]
-            C3_3["Code 5: WHITE"]
-        end
-
-        T1 --> T2 --> T3
-    end
+    classDef trans_node fill:#fff,stroke:#000,stroke-width:0px;
 
     %% Explanation
-    Note_Vocab["<b>Why Tokenize?</b><br>1. Finite Vocab (e.g. 10k codes vs 1B IDs)<br>2. Shared Semantics (Shoe=Shoe)<br>3. Enables GPT-style Generation"]:::vocab_note
+    Note_Vocab["<b>Why Tokenize?</b><br>1. Finite Vocab (e.g. 10k codes)<br>2. Shared Semantics (Shoe=Shoe)<br>3. Enables GPT-style Generation"]:::vocab_note
 
-    Token_World -.-> Note_Vocab
+    %% Main Flow Container
+    subgraph Sequence_Flow [Transformation Flow]
+        direction LR
 
-    class T1,T2,T3 token_group
+        %% ============ PAIR 1 ============
+        subgraph P1 [Step 1]
+            direction TB
+            ID1["Item #10492<br>(Nike Air)"]:::raw_item
+            Op1((&darr;<br>RQ)):::trans_node
+            
+            subgraph T1_Box [Tokens]
+                direction TB
+                C1_1["Code 4: SHOES"]
+                C1_2["Code 12: SPORT"]
+                C1_3["Code 8: RED"]
+            end
+            
+            ID1 --> Op1 --> C1_1
+            C1_1 -.-> C1_2 -.-> C1_3
+        end
+
+        %% ============ PAIR 2 ============
+        subgraph P2 [Step 2]
+            direction TB
+            ID2["Item #88210<br>(Adidas Boost)"]:::raw_item
+            Op2((&darr;<br>RQ)):::trans_node
+            
+            subgraph T2_Box [Tokens]
+                direction TB
+                C2_1["Code 4: SHOES"]
+                C2_2["Code 12: SPORT"]
+                C2_3["Code 2: BLUE"]
+            end
+            
+            ID2 --> Op2 --> C2_1
+            C2_1 -.-> C2_2 -.-> C2_3
+        end
+
+        %% ============ PAIR 3 ============
+        subgraph P3 [Step 3]
+            direction TB
+            ID3["Item #99999<br>(Unknown)"]:::raw_item
+            Op3((&darr;<br>RQ)):::trans_node
+            
+            subgraph T3_Box [Tokens]
+                direction TB
+                C3_1["Code 9: HAT"]
+                C3_2["Code 1: SUMMER"]
+                C3_3["Code 5: WHITE"]
+            end
+            
+            ID3 --> Op3 --> C3_1
+            C3_1 -.-> C3_2 -.-> C3_3
+        end
+
+        %% Horizontal Links between steps
+        ID1 -.-> ID2 -.-> ID3
+        C1_2 -.-> C2_2 -.-> C3_2
+    end
+
+    Note_Vocab -.-> Sequence_Flow
 ```
 
 Industry consensus (e.g., TIGER, OneRec) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
