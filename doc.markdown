@@ -841,7 +841,9 @@ From a First Principles perspective, we are building a decision-making agent.
 *   **The Environment**: The User.
 *   **The Reward**: The User's Feedback (Click/Skip).
 
-Thus, the problem is inherently a **Reinforcement Learning** problem. We aim to maximize the expected reward $J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau)]$.
+Thus, the problem is inherently a **Reinforcement Learning** problem. We aim to maximize the expected reward 
+
+$J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau)]$.
 
 #### 4.3.4 Mathematical Alignment: The "Supervised" Shortcut
 
