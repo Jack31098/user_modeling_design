@@ -692,6 +692,18 @@ To ensure this "Structure" exists, we rigorously monitor three geometric indicat
 
 #### 4.2.3 Solution: Producing "Quantizable" Embeddings
 
+> **⚠️ Critical Engineering Warning: The "Silent Failure" Trap**
+>
+> Many practitioners fail here. A poorly quantized codebook (e.g., one with low utilization or no residual structure) will **not** throw an error. Instead, it will silently pass garbage tokens to the Transformer. The Decoder will then struggle to learn any pattern, resulting in a model that performs no better than random guessing.
+>
+> **The Golden Rule**: **Verify First, Train Later.**
+> Before starting the expensive training of the Action Transformer (Ch 4.3), you **MUST** validate the RQ-KMeans output.
+> *   **Check 1**: Residual Energy Decay. Does $\|r_2\| < 0.8 \|r_1\|$? If residuals don't shrink, the hierarchy is fake.
+> *   **Check 2**: Codebook Usage. Are >90% of codes being used? If not, you have dead neurons.
+> *   **Check 3**: Reconstructability. Does `Decode(Encode(Item))` visually/semantically match the original?
+>
+> **If these checks fail, STOP. Do not proceed to Chapter 4.3. Go back and fix your pre-training geometry.**
+
 *Note: The optimization of embedding geometry for quantization is a vast research field. Here, we outline the critical protocols specific to our architecture.*
 
 **Pre-training Config (Creating the Fractal Manifold)**
