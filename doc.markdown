@@ -460,6 +460,12 @@ $$v_{new}^{(l)} = v_{k^{\ast}}^{(l-1)} + r_{new}$$
 
 $$S_{new}^{(l)} = \text{Score}_{k^{\ast}, j^{\ast}}$$
 
+> **Engineering Note: Why Beam Search is Fast Enough**
+> Critics might argue that Beam Search adds latency. However, unlike NLP generation (Depth $T=512+$), our Routing Depth is fixed and shallow (e.g., $L=3$ layers). With a small Beam Width ($B=2$) and vectorized operations, the routing overhead is essentially equivalent to **3 small MLP layers**, adding negligible latency (< 2ms) compared to the retrieval benefits.
+
+> **Addressing the Train-Test Gap (Soft vs. Hard)**
+> To mitigate the discrepancy between Gumbel-Softmax (Training) and Hard Selection (Inference), we employ the **Straight-Through Estimator (STE)** during the forward pass of training, or enforce a strong **Commitment Loss** (pushing $v$ towards $c$) to ensuring that the soft distribution is highly peaked (Low Entropy) before deployment.
+
 #### 3.3.5 Output Normalization
 
 Since the target embedding space (FashionCLIP) is a hypersphere, the output of the final layer $L$ must be normalized before ANN retrieval.
@@ -474,7 +480,9 @@ $$\mathcal{L}_{total} = \mathcal{L}_{NCE} + \alpha \mathcal{L}_{Align} + \beta \
 
 **InfoNCE Loss (Retrieval)**
 
-$$\mathcal{L}_{NCE} = -\log \frac{\exp(\tilde{q} \cdot i^{+} / \tau_{nce})}{\sum_{i^{-}} \exp(\tilde{q} \cdot i^{-} / \tau_{nce})}$$
+$$ \mathcal{L}_{NCE} = - \log \left( \frac{ \exp( \tilde{q} \cdot i^{+} / \tau ) }{ \exp( \tilde{q} \cdot i^{+} / \tau ) + \sum_{i^{-} \in \mathcal{N}} \exp( \tilde{q} \cdot i^{-} / \tau ) } \right) $$
+
+*(Note: The denominator includes both the positive sample and the set of negatives $\mathcal{N}$)*
 
 **Geometric Alignment Loss**
 
