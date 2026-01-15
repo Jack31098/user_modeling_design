@@ -691,9 +691,11 @@ To generate embeddings that satisfy the "Global Isotropy, Local Structure" requi
 *   **Collaborative Signal Injection (The "Affinity" Requirement)**: A critical industry lesson is that purely content-based embeddings (e.g., from raw images) fail at tokenization because visual similarity $\neq$ user preference. To produce a "quantizable" space for recommendation, the embeddings **must** be infused with **Collaborative Signals (User Affinity)**. We achieve this by mining hard negatives from user click logs during the contrastive pre-training phase, ensuring that the resulting codebook clusters items not just by "what they look like," but by "who buys them together."
 
 **Quantization Strategy (The Tangent Trick)**
-Standard Euclidean residual ($r = x - c$) is geometrically flawed for spherical embeddings, as the chordal difference falls *inside* the sphere, losing the angular properties.
-*   **Geometric Optimization**: We perform quantization in the **Tangent Space** or utilize **Spherical KMeans (Cosine Distance)**.
-*   **Mechanism**: Instead of minimizing $\| x - \sum c_i \|^2$, we maximize the cosine similarity $\cos(x, \sum c_i)$. This ensures that every layer of the residual codebook operates on directional alignment rather than magnitude, preserving the semantic consistency of the retrieval space.
+The core issue with standard Euclidean residual ($r = x - c$) on spherical data is **Residual Correlation**. If $x$ and $c$ are close on the sphere, the simple difference vector retains a strong component along the direction of $c$, meaning the residual is not "pure" new information.
+*   **Geometric Optimization**: We employ **Tangent Space Projection** (Orthogonalization) to compute residuals.
+*   **Mechanism**: Instead of simple subtraction, we project $x$ onto the subspace orthogonal to the chosen centroid $c$.
+    $$r = x - (x^\top c) \cdot c$$
+    (assuming $c$ is unit norm). This removes the component of $x$ that is already explained by $c$, ensuring that $r \perp c$. The next layer of quantization thus operates in a strictly complementary subspace, maximizing the information gain of each hierarchical step.
 
 ### 4.3 The Architecture: Generative Action Transformer
 
