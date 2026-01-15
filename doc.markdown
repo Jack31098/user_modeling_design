@@ -661,69 +661,68 @@ To unify recommendation with generative modeling, we must first answer a fundame
 This section details **Residual Quantization (RQ-KMeans)**, the mechanism that translates continuous item embeddings into this discrete code sequence.
 
 #### 4.2.1 Motivation: Why Residuals Are Not Enough
-
 While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
 
 ```mermaid
-graph TB
+graph LR
     %% Styles
     classDef raw_item fill:#eeeeee,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5;
     classDef token_group fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
     classDef vocab_note fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-    classDef trans_node fill:#fff,stroke:#000,stroke-width:0px;
 
-    %% Explanation Note
-    Note_Vocab["<b>Why Tokenize?</b><br>1. Finite Vocab (e.g. 10k codes)<br>2. Shared Semantics (Shoe=Shoe)<br>3. Enables GPT-style Generation"]:::vocab_note
-
-    %% Main Flow
-    subgraph Flow [Transformation Process]
+    %% 1. The Old World
+    subgraph Raw_World ["Standard World: Infinite ID Stream"]
         direction LR
-
-        %% Pair 1
-        subgraph Pair1 [Time Step 1]
-            direction TB
-            ID1["Item #10492<br>(Nike Air)"]:::raw_item
-            Arrow1((&darr;<br>RQ)):::trans_node
-            subgraph T1 ["Tokenized"]
-                C1_1["Code 4: SHOES"]
-                C1_2["Code 12: SPORT"]
-                C1_3["Code 8: RED"]
-            end
-            ID1 --> Arrow1 --> T1
-        end
-
-        %% Pair 2
-        subgraph Pair2 [Time Step 2]
-            direction TB
-            ID2["Item #88210<br>(Adidas Boost)"]:::raw_item
-            Arrow2((&darr;<br>RQ)):::trans_node
-            subgraph T2 ["Tokenized"]
-                C2_1["Code 4: SHOES"]
-                C2_2["Code 12: SPORT"]
-                C2_3["Code 2: BLUE"]
-            end
-            ID2 --> Arrow2 --> T2
-        end
-
-        %% Pair 3
-        subgraph Pair3 [Time Step 3]
-            direction TB
-            ID3["Item #99999<br>(Unknown)"]:::raw_item
-            Arrow3((&darr;<br>RQ)):::trans_node
-            subgraph T3 ["Tokenized"]
-                C3_1["Code 9: HAT"]
-                C3_2["Code 1: SUMMER"]
-                C3_3["Code 5: WHITE"]
-            end
-            ID3 --> Arrow3 --> T3
-        end
-
-        %% Horizontal Connections
+        ID1["Item #10492<br>(Nike Air)"]:::raw_item
+        ID2["Item #88210<br>(Adidas Boost)"]:::raw_item
+        ID3["Item #99999<br>(Unknown)"]:::raw_item
+        
         ID1 -.-> ID2 -.-> ID3
+    end
+
+    %% Transformation
+    Trans_Arrow1((&darr;<br>RQ-KMeans))
+    Trans_Arrow2((&darr;<br>RQ-KMeans))
+    Trans_Arrow3((&darr;<br>RQ-KMeans))
+    
+    ID1 --> Trans_Arrow1
+    ID2 --> Trans_Arrow2
+    ID3 --> Trans_Arrow3
+
+    %% 2. The New World
+    subgraph Token_World ["Our World: Semantic Code Stream"]
+        direction LR
+        
+        subgraph T1 ["Item 1 Tokens"]
+            direction TB
+            C1_1["Code 4: SHOES"]
+            C1_2["Code 12: SPORT"]
+            C1_3["Code 8: RED"]
+        end
+        
+        subgraph T2 ["Item 2 Tokens"]
+            direction TB
+            C2_1["Code 4: SHOES"]
+            C2_2["Code 12: SPORT"]
+            C2_3["Code 2: BLUE"]
+        end
+        
+        subgraph T3 ["Item 3 Tokens"]
+            direction TB
+            C3_1["Code 9: HAT"]
+            C3_2["Code 1: SUMMER"]
+            C3_3["Code 5: WHITE"]
+        end
+
         T1 --> T2 --> T3
     end
 
-    Note_Vocab -.-> Flow
+    %% Explanation
+    Note_Vocab["<b>Why Tokenize?</b><br>1. Finite Vocab (e.g. 10k codes vs 1B IDs)<br>2. Shared Semantics (Shoe=Shoe)<br>3. Enables GPT-style Generation"]:::vocab_note
+
+    Token_World -.-> Note_Vocab
+
+    class T1,T2,T3 token_group
 ```
 
 Industry consensus (e.g., TIGER, OneRec) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
