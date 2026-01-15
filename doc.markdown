@@ -1003,3 +1003,94 @@ Directly training a Generative Transformer on raw, high-negative (1:100) logs is
     *   **Freeze**: The Transformer Backbone (The "Brain").
     *   **Train**: Only the **Contextualized Residuals (Section 4.1)** and the Action Prediction Head.
     *   **Why**: As hypothesized in 4.1, the *Static Base* captures the semantic "Syntax" (learned in Stage 1), while the *Learnable Residual* captures the personalized "Preference" (refined in Stage 2). This allows us to adapt to high-negative ranking distributions with minimal computational cost and high stability.
+
+### 4.4 Inference: Controllable Generation (Steering)
+
+The true power of the Generative Action Transformer lies in its ability to be **steered** at inference time. Unlike standard retrieval models that output a fixed "most relevant" list, our model acts as a conditional generator. By manipulating the **Prompt Sequence** (the tokens appended after the user profile), we can dynamically alter the retrieval logic to satisfy diverse business requirements without retraining.
+
+#### 4.4.1 Mechanism: Prompt Engineering for Recommendation
+
+The input to the model during inference is:
+$$ X_{inf} = [\text{User Profile}] + [\text{History}] + [\textbf{Control Prompts}] $$
+
+The **Control Prompts** effectively reshape the probability distribution $P(\text{Next Item} \mid \text{Context})$, guiding the beam search toward specific subspaces of the item catalog.
+
+#### 4.4.2 Use Case Scenarios
+
+**Scenario A: Maximize CTR (The "Best Bet" Mode)**
+*   **Goal**: Retrieve the items most likely to be clicked by the user.
+*   **Prompt**: `[CLICK]`
+*   **Mechanism**: This conditions the model on the positive interaction token. The model ignores items that it predicts would lead to `[SKIP]` or `[VIEW]`, focusing solely on high-confidence candidates.
+*   **Application**: Homepage "Top Picks", Fallback retrieval.
+
+**Scenario B: Exploration & Discovery**
+*   **Goal**: Break the "Filter Bubble" and surface novel items that the user hasn't seen but might like.
+*   **Prompt**: `[EXPLORE]` + `[CLICK]`
+*   **Mechanism**: The `[EXPLORE]` token (learned during training to associate with diverse/tail items) penalizes the retrieval of items too similar to the immediate history, while the subsequent `[CLICK]` ensures the novel items are still relevant enough to engage with.
+*   **Application**: "New Arrivals", "Discover" tab.
+
+**Scenario C: Visual Similarity Search (Item-to-Item)**
+*   **Goal**: Find items visually similar to a specific seed item (e.g., "Find more shoes like *this one*").
+*   **Prompt**: `[Seed Item ID]` + `[CLICK]`
+*   **Mechanism**: By injecting a specific Item ID as the immediate context, we force the Transformer's attention mechanism to attend heavily to that item's features. The `[CLICK]` token then filters for similarity *that matters to the user* (e.g., matching style/brand rather than just color).
+*   **Application**: "More like this", "Complete the look".
+
+**Scenario D: Category Steering**
+*   **Goal**: Retrieve relevant items, but restrict them to a specific category (e.g., "Hiking Gear").
+*   **Prompt**: `[Category: HIKING]` + `[CLICK]`
+*   **Mechanism**: We can learn lightweight "Soft Prompts" (continuous vectors) representing categories. Pre-pending this prompt biases the item code prediction heads toward the subspace of the codebook associated with hiking gear.
+*   **Application**: Category pages, Search result re-ranking.
+
+## 5. Future Directions: End-to-End Latent Tokenization
+
+While Chapter 4 presented a robust, industry-proven solution using RQ-KMeans, it inherently suffers from a **"Two-Stage Gap"**: the Item Tokenizer is trained on geometric similarity (Euclidean distance), while the Retrieval Transformer is trained on semantic preference (Next Item Prediction). Geometric closeness does not always imply semantic substitutability.
+
+This chapter explores a cutting-edge theoretical alternative: **What if we learn the tokenization end-to-end within the Transformer?**
+
+### 5.1 The Concept: In-Transformer Residual Quantization
+
+Instead of using a fixed, pre-computed vocabulary (from RQ-KMeans), we propose injecting a learnable **Latent Codebook** directly into the Transformer's layers.
+
+**The Hypothesis**:
+If we force the Transformer to pass its hidden state through a discrete bottleneck (via Gumbel-Softmax) layer-by-layer, it might learn a "Language of Items" that is perfectly optimized for the retrieval task, rather than for geometric reconstruction.
+
+### 5.2 Theoretical Architecture
+
+We envision a **Residual Routing Transformer** that progressively refines the user intent through discrete checkpoints.
+
+Let $H_0$ be the initial user history embedding. The model generates a sequence of latent query tokens $q_1, q_2, q_3$:
+
+1.  **Layer 1 (Coarse Intent)**:
+    $$ q_1 = \text{GumbelTop1}( \text{Projector}_1(H_0), \mathcal{C}_1 ) $$
+    $$ H_1 = \text{TransformerBlock}(H_0, q_1) $$
+2.  **Layer 2 (Fine Intent)**:
+    $$ q_2 = \text{GumbelTop1}( \text{Projector}_2(H_1), \mathcal{C}_2 ) $$
+    $$ H_2 = \text{TransformerBlock}(H_1, q_2) $$
+3.  **Layer 3 (Precise Item)**:
+    $$ q_3 = \text{GumbelTop1}( \text{Projector}_3(H_2), \mathcal{C}_3 ) $$
+
+**Training Objective**:
+$$ \mathcal{L} = \| \text{StopGrad}(q_1+q_2+q_3) - \text{TargetItem} \| + \mathcal{L}_{\text{Hierarchy}} $$
+
+### 5.3 The Three "Death Traps" (Why this is hard)
+
+While theoretically elegant, this approach faces three formidable optimization challenges that explain why it has not yet replaced RQ-KMeans:
+
+**1. The Posterior Collapse (Codebook Death)**
+*   **The Phenomenon**: Neural networks are "lazy." They often find that relying on just 5-10 specific codes in the dictionary is enough to minimize the average loss, ignoring the other 990 codes.
+*   **The Result**: The "Vocabulary" collapses. The model loses resolution, predicting the same generic "average items" for everyone. RQ-KMeans avoids this by forcibly partitioning the space geometrically.
+
+**2. Hierarchy Vanishing (The "Residual" Lie)**
+*   **The Phenomenon**: Without strong geometric constraints, the model may not obey the "Coarse $\to$ Fine" hierarchy. $q_1$ might learn nothing, leaving $q_3$ to do all the work, or vice versa.
+*   **The Result**: The multi-stage structure becomes redundant. The vectors do not form a meaningful residual chain ($y \approx q_1 + q_2 + q_3$), making the discrete codes semantically meaningless.
+
+**3. The Indexability Crisis (The Inference Nightmare)**
+*   **The Problem**: In RQ-KMeans, every item has a fixed ID `[12, 55, 9]`. We can build an inverted index. In this Latent approach, the "Code" is a dynamic activation of the User Tower.
+*   **The Consequence**: To retrieve an item, we must know its dynamic code. This requires training a **Dual-Tower VQ-VAE** (an Item Tower that mimics the User Tower's tokenization), adding massive complexity to ensure the two towers stay aligned.
+
+### 5.4 Path Forward
+
+To make this end-to-end dream a reality, future research must focus on:
+1.  **Commitment Losses**: Adding strict VQ-VAE style losses ($\|sg(z)-e\|$) to force codebook usage.
+2.  **Orthogonal Constraints**: Forcing $q_2$ to be orthogonal to $q_1$ in the tangent space to ensure true residual learning.
+3.  **Joint-Tower Training**: Training the Item Tokenizer and User Retriever simultaneously with shared codebooks.
