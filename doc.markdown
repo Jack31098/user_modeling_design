@@ -760,6 +760,9 @@ graph TB
     subgraph Context ["1. System Prompt"]
         direction TB
         UserQ["User Q-Former Tokens<br/>(M=32)"]:::context_block
+        Projector["Adapter / Projector<br/>(Dimension Match)"]:::projector_block
+        
+        UserQ --> Projector
     end
 
     %% ============ 2. THE INPUT SEQUENCE ============
@@ -789,7 +792,7 @@ graph TB
     end
 
     %% ============ Connections ============
-    UserQ --> Concat_Layer
+    Projector --> Concat_Layer
     AT --> Concat_Layer
     
     Concat_Layer --> Decoder_Layers
