@@ -652,14 +652,36 @@ graph TB
 
 ### 4.2 The Foundation: Robust Discretization (RQ-KMeans)
 
-While Contextualized Residuals improve the representation, standard contrastive losses (NCE) still suffer from "distributional blurring" in the continuous space. To achieve true sharpness, we shift the paradigm from "predicting a vector" to "predicting a code" via **Residual Quantization (RQ-KMeans)**.
+To unify recommendation with generative modeling, we must first map the continuous item embedding space into a discrete codebook sequence. We employ **Residual Quantization (RQ-KMeans)** to ensure the discrete tokens preserve the geometric properties of the original space.
 
-To be populated.
-(Details on Item Embedding Health: Anisotropy, Hubness; and Codebook Health: Dead Codes, Entropy, Inertia).
+#### 4.2.1 Motivation: Why Residuals Are Not Enough
+While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
+Industry consensus (e.g., TIGER, RQ-VAE) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
+
+#### 4.2.2 The Geometric Prerequisite: Codebook Health
+The success of RQ-KMeans depends entirely on the geometric quality of the input embeddings. "Garbage in, garbage out" is the rule. We rigorously monitor three health indicators:
+
+1.  **Isotropy (The Sphere Check)**:
+    *   *Problem*: If embeddings cluster in a narrow cone (Anisotropy), KMeans centroids will collapse, leading to low resolution.
+    *   *Requirement*: Embeddings must be uniformly distributed on the hypersphere. We enforce this via `Temperature Scaling` and `L2 Normalization` during pre-training.
+
+2.  **Hubness (The Bully Check)**:
+    *   *Problem*: "Hub" items (nearest neighbors to everyone) hijack the quantization, causing "Dead Codes" (centroids that are never used).
+    *   *Requirement*: The variance of the nearest-neighbor count must be low.
+
+3.  **Local Linearity (The Residual Check)**:
+    *   *Problem*: RQ-KMeans assumes $x \approx c_1 + c_2 + c_3$. This additive assumption fails in highly non-linear manifolds.
+    *   *Requirement*: The manifold must be locally linear enough for residual decomposition to hold semantic meaning.
+
+#### 4.2.3 Solution: Producing "Quantizable" Embeddings
+To generate embeddings suitable for tokenization, we employ a strict training protocol before quantization:
+*   **Contrastive Learning Config**: Use a large Batch Size (4096+) to ensure sufficient negatives for isotropy.
+*   **Optimization**: Calibrate `Temperature` ($\tau$) to balance uniformity and alignment.
+*   **Result**: A mathematically healthy embedding space that serves as a robust foundation for the discrete codebook.
 
 ### 4.3 The Architecture: Generative Action Transformer
 
-With a sharp discrete space (Phase 3) and personalized capacity (Phase 2), we build the **Generative Action Transformer**. This model treats user actions (Click, Cart, etc.) as first-class citizens in the sequence.
+We introduce the "Action Token" paradigm, treating user actions (Click, Cart, etc.) as first-class citizens in the sequence, allowing the model to simultaneously learn ranking alignment and next-item generation.
 
 To be populated.
 (Details on interleaving Action Tokens, the dual training objectives, and how this achieves the "Action Alignment" North Star).
