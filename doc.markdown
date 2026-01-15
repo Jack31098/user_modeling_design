@@ -177,8 +177,10 @@ By using a set of $M$ tokens, Q-Former allows these objectives to be satisfied a
 
 1.  **Diversity Regularizer (Task B)**: The Masked Modeling loss forces the set to retain *all* historical details, implicitly discouraging tokens from discarding "niche" information that doesn't fit the majority gradient.
 2.  **Orthogonality Constraint (The "Hard" Guarantee)**: To explicitly enforce specialization, we add a penalty term to minimize the cosine similarity between query tokens:
-    $$ \mathcal{L}_{orth} = \| Q_{out} \cdot Q_{out}^T - I \|_F $$
-    This forces different tokens to span different subspaces of the user interest manifold. *(Note: Chapter 5.4 explores more advanced constraints like Entropy Maximization).*
+
+$$ \mathcal{L}_{orth} = \| Q_{out} \cdot Q_{out}^T - I \|_F $$
+
+This forces different tokens to span different subspaces of the user interest manifold. *(Note: Chapter 5.4 explores more advanced constraints like Entropy Maximization).*
 
 3.  **Result**: The latent space becomes a **Multi-Modal Set** rather than a single Mean Vector. $Token_{A}$ captures **Dominant Interests** (High Task A utility), while $Token_{B}$ captures **Niche Interests** (High Task B utility).
 
