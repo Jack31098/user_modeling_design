@@ -820,10 +820,10 @@ $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_
     *   **Role**: Explicitly signals the *quality* of the interaction.
     *   *Why*: This allows the model to learn the difference between "User *clicked* X" vs "User *skipped* X". During inference, we can force the model to generate only items associated with `[CLICK]` or `[BUY]`, directly optimizing for CVR.
 
-3.  **Item Embeddings (The Content)**:
-    *   **Source**: The **Contextualized Item Embeddings** ($E_{final}$) from **Section 4.1**.
-    *   **Role**: Unlike standard LLMs that use discrete input tokens, we use the rich, continuous representations modulated by the user gate. This allows the Transformer to "see" the personalized version of the item (e.g., "This shoe is a *Running* shoe for this user").
-    *   *Note*: While the *Input* is continuous (for richness), the *Target* is discrete (for sharpness).
+3.  **Item Tokens (The Content)**:
+    *   **Source**: The discrete code tuples derived from **RQ-KMeans (Section 4.2)**.
+    *   **Role**: Each item is represented by the embeddings of its quantized codes (e.g., $E_{c1} + E_{c2} + E_{c3}$). This maps the continuous item space into the finite "vocabulary" required for the generative transformer.
+    *   *Note on Contextualization*: To retain the personalized capacity from **Section 4.1**, the **Contextualized Residual** ($g \cdot E_{learnable}$) is added to these token embeddings before entering the Transformer layers. This ensures we have both the **sharpness** of discrete tokens and the **richness** of continuous personalization.
 
 #### 4.3.3 Training Objectives
 
