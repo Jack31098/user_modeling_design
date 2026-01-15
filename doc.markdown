@@ -663,7 +663,7 @@ This section details **Residual Quantization (RQ-KMeans)**, the mechanism that t
 #### 4.2.1 Motivation: Why Residuals Are Not Enough
 While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
 
-![RQ-KMeans Discretization Process](https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/rq-kmeans.png)
+![RQ-KMeans Discretization](https://raw.githubusercontent.com/Jack31098/user_modeling_design/refs/heads/main/rq-kmeans.png)
 
 Industry consensus (e.g., TIGER, OneRec) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
 
