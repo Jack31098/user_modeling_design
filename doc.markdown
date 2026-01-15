@@ -685,13 +685,12 @@ To ensure this "Structure" exists, we rigorously monitor three geometric indicat
 
 *Note: The optimization of embedding geometry for quantization is a vast research field. Here, we outline the critical protocols specific to our architecture.*
 
-**1. Pre-training Config (Creating the Fractal Manifold)**
+**Pre-training Config (Creating the Fractal Manifold)**
 To generate embeddings that satisfy the "Global Isotropy, Local Structure" requirement, we must adopt a training paradigm that bridges the gap between **Contrastive Alignment (like CLIP)** and **Generative Modeling (like LLaVA)**.
-
 *   **Paradigm Shift (CLIP $\to$ LLaVA)**: Standard CLIP models optimize for global semantic alignment but often ignore the fine-grained local structure required for tokenization. LLaVA-style training, conversely, forces the embedding to support next-token prediction. Our embedding training must anticipate this downstream generative task.
 *   **Collaborative Signal Injection (The "Affinity" Requirement)**: A critical industry lesson is that purely content-based embeddings (e.g., from raw images) fail at tokenization because visual similarity $\neq$ user preference. To produce a "quantizable" space for recommendation, the embeddings **must** be infused with **Collaborative Signals (User Affinity)**. We achieve this by mining hard negatives from user click logs during the contrastive pre-training phase, ensuring that the resulting codebook clusters items not just by "what they look like," but by "who buys them together."
 
-**2. Quantization Strategy (The Tangent Trick)**
+**Quantization Strategy (The Tangent Trick)**
 Standard Euclidean residual ($r = x - c$) is geometrically flawed for spherical embeddings, as the chordal difference falls *inside* the sphere, losing the angular properties.
 *   **Geometric Optimization**: We perform quantization in the **Tangent Space** or utilize **Spherical KMeans (Cosine Distance)**.
 *   **Mechanism**: Instead of minimizing $\| x - \sum c_i \|^2$, we maximize the cosine similarity $\cos(x, \sum c_i)$. This ensures that every layer of the residual codebook operates on directional alignment rather than magnitude, preserving the semantic consistency of the retrieval space.
