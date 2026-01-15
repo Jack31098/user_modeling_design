@@ -665,7 +665,7 @@ This section details **Residual Quantization (RQ-KMeans)**, the mechanism that t
 #### 4.2.1 Motivation: Why Residuals Are Not Enough
 While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
 
-Industry consensus (e.g., TIGER, OneRec) suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
+Industry consensus, including recent advances like **OneRec-V2** [1], suggests that true sharpness is best achieved by **Discretization**—shifting from predicting a "fuzzy vector" to predicting a "precise code" in a hierarchical semantic tree.
 
 #### 4.2.2 The Geometric Prerequisite: Codebook Health
 
@@ -821,7 +821,7 @@ Standard sequential models treat user history as a simple bag of items: `[Item_1
 We restructure the input as an **Interleaved Action-Item Sequence**, effectively treating user behavior as a sentence where verbs (Actions) and nouns (Items) are equally important.
 
 **The Input Protocol**
-The input $X$ to the Transformer is a fully unrolled sequence:
+The input $X$ to the Transformer is a fully unrolled sequence, adopting a **Token Assorted** [2] strategy that mixes explicit control tokens with latent item codes:
 
 $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_1, A_2, I_2, \dots, A_t, I_t}_{\text{Dynamic History}}] $$
 
@@ -1048,9 +1048,11 @@ While Chapter 4 presented a robust, industry-proven solution using RQ-KMeans, it
 
 This chapter explores a cutting-edge theoretical alternative: **What if we learn the tokenization end-to-end within the Transformer?**
 
+Recent works such as the **Byte Latent Transformer (BLT)** [3] demonstrate that latent patches can scale better than fixed tokens, suggesting that the era of rigid tokenizers may be ending.
+
 ### 5.1 The Concept: In-Transformer Residual Quantization
 
-Instead of using a fixed, pre-computed vocabulary (from RQ-KMeans), we propose injecting a learnable **Latent Codebook** directly into the Transformer's layers.
+Instead of using a fixed, pre-computed vocabulary (from RQ-KMeans), we propose injecting a learnable **Latent Codebook** directly into the Transformer's layers. This aligns with the "Recurrent Refinement" philosophy of **Universal Transformers** [4], where representations are iteratively polished layer-by-layer.
 
 **The Hypothesis**:
 If we force the Transformer to pass its hidden state through a discrete bottleneck (via Gumbel-Softmax) layer-by-layer, it might learn a "Language of Items" that is perfectly optimized for the retrieval task, rather than for geometric reconstruction.
@@ -1123,3 +1125,14 @@ This penalizes the model if deeper layers (which consume more compute/tokens) do
 To solve the indexing crisis, we must train a lightweight **Item Encoder** (Tower B) alongside the User Tower (Tower A).
 *   **Objective**: User Code $z_u$ should match Item Code $z_i$.
 *   **Mechanism**: Shared Codebooks. The Item Encoder acts as the "Ground Truth" tokenizer, while the User Tower learns to predict these tokens from history.
+
+
+## 6. References
+
+[1] **OneRec-V2 Technical Report**. (2025). *arXiv preprint arXiv:2508.20900*. Retrieved from https://arxiv.org/abs/2508.20900
+
+[2] **Token Assorted: Mixing Latent and Text Tokens for Improved Language Model Reasoning**. (2025). *arXiv preprint arXiv:2502.03275*. Retrieved from https://arxiv.org/pdf/2502.03275
+
+[3] Patraucean, V., et al. **Byte Latent Transformer: Patches Scale Better Than Tokens**. (2024). *arXiv preprint arXiv:2412.09871*. Retrieved from https://arxiv.org/pdf/2412.09871
+
+[4] Dehghani, M., Gouws, S., Vinyals, O., Uszkoreit, J., & Kaiser, Ł. **Universal Transformers**. (2019). *International Conference on Learning Representations (ICLR)*. Retrieved from https://arxiv.org/pdf/1807.03819
