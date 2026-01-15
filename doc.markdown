@@ -807,7 +807,7 @@ Standard sequential models treat user history as a simple bag of items: `[Item_1
 We restructure the input as an **Interleaved Action-Item Sequence**, effectively treating user behavior as a sentence where verbs (Actions) and nouns (Items) are equally important.
 
 **The Input Protocol**
-The input $X$ to the Transformer is constructed as:
+The input $X$ to the Transformer is a fully unrolled sequence:
 
 $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_1, A_2, I_2, \dots, A_t, I_t}_{\text{Dynamic History}}] $$
 
@@ -822,43 +822,43 @@ $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_
 
 3.  **Item Tokens (The Content)**:
     *   **Source**: The discrete code tuples derived from **RQ-KMeans (Section 4.2)**.
-    *   **Role**: Each item is represented by the embeddings of its quantized codes (e.g., $E_{c1} + E_{c2} + E_{c3}$). This maps the continuous item space into the finite "vocabulary" required for the generative transformer.
-    *   *Note on Contextualization*: To retain the personalized capacity from **Section 4.1**, the **Contextualized Residual** ($g \cdot E_{learnable}$) is added to these token embeddings before entering the Transformer layers. This ensures we have both the **sharpness** of discrete tokens and the **richness** of continuous personalization.
+    *   **Role**: Each item $I_t$ is unfolded into a sub-sequence of tokens $[c_{t,1}, c_{t,2}, c_{t,3}]$.
+    *   **Embeddings**: These tokens are mapped to dense vectors using a **newly learned embedding table** (separate from the pre-trained centroids). This allows the Transformer to learn optimal representations for sequence modeling from scratch, unconstrained by the frozen geometry of the quantization codebook.
 
 #### 4.3.3 Training Objectives
 
-The model is trained end-to-end using a multi-task objective that balances ranking accuracy (Action Prediction) with retrieval precision (Item Generation).
+The model is trained end-to-end using a standard causal language modeling objective.
 
 **Total Loss Function**
-$$ \mathcal{L}_{Total} = \lambda_{act} \mathcal{L}_{Action} + \lambda_{item} \mathcal{L}_{Item} $$
+$$ \mathcal{L}_{Total} = \mathcal{L}_{CLM} $$
 
-**1. Action Prediction Loss (Discriminative)**
-*   **Target**: The ground-truth action $A_t$ (e.g., Click, Skip).
-*   **Mechanism**: Standard Cross-Entropy loss over the small action vocabulary.
-    $$ \mathcal{L}_{Action} = - \sum_{t} \log P(A_t \mid H_t, I_t) $$
-*   **Role**: Forces the model to understand *user preference* given a specific item context.
+Since Action Tokens and Item Code Tokens are all part of the same flattened vocabulary, we train using a unified **Next Token Prediction** loss:
 
-**2. Item Code Prediction Loss (Generative)**
-*   **Target**: The RQ-KMeans code tuple for Item $I_t$: $(c_{t,1}, c_{t,2}, c_{t,3})$.
-*   **Mechanism**: To maintain high inference speed, we do **not** unroll the codes into a longer sequence (which would triple the context length). Instead, we employ **Parallel Prediction Heads**.
-    The Transformer output state $h_t$ is projected into 3 independent codebook spaces simultaneously:
-    $$ \mathcal{L}_{Item} = - \sum_{t} \sum_{k=1}^{3} \log P(c_{t,k} \mid h_t) $$
-*   **Role**: Forces the model to generate the correct semantic "coordinates" of the next item. The hierarchical nature of RQ-KMeans ensures that even if fine-grained codes ($c_3$) are noisy, the coarse codes ($c_1$) provide a valid retrieval anchor.
+$$ \mathcal{L}_{CLM} = - \sum_{j} \log P(x_j \mid x_{<j}) $$
+
+*   **Action Prediction**: When $x_j$ is an Action Token, the model learns to predict user preference (Discriminative).
+*   **Item Code Prediction**: When $x_j$ is an Item Code Token, the model learns to generate the next item in the hierarchy (Generative).
+    *   Predict $c_1$ given History + Action.
+    *   Predict $c_2$ given History + Action + $c_1$.
+    *   Predict $c_3$ given History + Action + $c_1 + c_2$.
 
 #### 4.3.4 Inference Process (The Generative Flow)
 
 During inference, we generate recommendations by simulating a conversation with the user profile.
 
 **Step 1: Context Setup**
-Initialize the sequence with the User Q-Former tokens (System Prompt).
+Initialize the sequence with the User Q-Former tokens (System Prompt) and recent history.
 
 **Step 2: Intent Injection (The "Control" Step)**
 Append a target **Action Token** to the sequence (e.g., `[CLICK]`). This conditions the model to generate only items that maximize the probability of this specific action.
-*   *Note*: This bypasses the need to generate "Skip" items, effectively filtering the search space to high-value candidates.
 
-**Step 3: One-Shot Generation (Distilled Sampling)**
-Instead of running a heavy Beam Search for every token, we utilize the **Distilled Policy Head** (see 4.3.1 Engineering Note) to rapidly propose a set of candidate item codes $(c_1, c_2, c_3)$.
-*   **Parallel Decoding**: The 3 code levels are predicted in parallel, allowing for $O(1)$ generation complexity per item, regardless of code depth.
+**Step 3: Hierarchical Decoding (Beam Search)**
+The model generates the item codes sequentially:
+1.  **Level 1**: Predict top-k $c_1$ codes conditioned on the `[CLICK]` token.
+2.  **Level 2**: For each $c_1$, predict top-k $c_2$ codes.
+3.  **Level 3**: For each sequence $(c_1, c_2)$, predict top-k $c_3$ codes.
+
+This hierarchical search allows the model to refine its prediction from coarse categories (e.g., "Shoes") to specific attributes (e.g., "Red") to precise items (e.g., "Nike Air Max"), ensuring semantic consistency.
 
 **Step 4: Decode & Deduplicate**
-Convert the generated code tuples back into Item IDs using the RQ-KMeans codebook lookup. Remove duplicates and items already in the user's history.
+Convert the generated code tuples $(c_1, c_2, c_3)$ back into Item IDs using the RQ-KMeans codebook lookup. Remove duplicates and items already in the user's history.
