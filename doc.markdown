@@ -927,6 +927,11 @@ We conclude that the standard **Next Token Prediction (CLM)** loss functions as 
 
 $$ \mathcal{L}_{\text{Total}} = \mathcal{L}_{\text{CLM}} \quad (\text{serving as } \mathcal{L}_{\text{Stable-RL}}) $$
 
+**Why This Derivation Matters?**
+One might ask: *Why take the detour through Reinforcement Learning if we end up with a standard Supervised Loss?*
+The value lies in the **Theoretical Robustness**. We are not merely "assuming" classification works for recommendation; we have proven that it is the **Optimal Policy Gradient Estimator** for positive feedback and a **Variance-Reduced Proxy** for negative feedback.
+Crucially, this First Principles framework future-proofs the model. If we later need to optimize for continuous rewards (e.g., **Dwell Time, GMV**), we can simply re-introduce the scalar reward term $R_t$ into the gradient, transitioning seamlessly from Imitation Learning to full RL—something a pure classification perspective cannot theoretically justify.
+
 #### 4.3.4 Inference Process (The Generative Flow)
 
 During inference, we generate recommendations by simulating a conversation with the user profile.
@@ -947,3 +952,21 @@ This hierarchical search allows the model to refine its prediction from coarse c
 
 **Step 4: Decode & Deduplicate**
 Convert the generated code tuples $(c_1, c_2, c_3)$ back into Item IDs using the RQ-KMeans codebook lookup. Remove duplicates and items already in the user's history.
+
+#### 4.3.5 Data Sampling & Calibration Strategy
+
+Introducing Action Tokens (especially negatives like `[SKIP]`) creates a trade-off between **Generative Fluency** and **Discriminative Accuracy**.
+
+**1. The "Negative Pollution" Risk**
+If the training data is dominated by negative interactions (which is true in reality, where CTR < 5%), the model learns that the most probable next token is almost always `[SKIP]`.
+*   **Consequence**: During inference, even when prompted with `[CLICK]`, the model's internal priors may be so skewed towards negativity that the probability mass for any specific item code $P(c_1 \mid \text{[CLICK]})$ becomes unstable or poorly calibrated.
+
+**2. Calibration Requirement**
+The probability predicted by the model $P_{\text{model}}(Action)$ is heavily dependent on the training sampling ratio $\alpha = \frac{N_{pos}}{N_{neg}}$.
+To use the model for **Ranking** (predicting precise CTR), we must calibrate the output logit back to the real-world distribution using the standard log-odds correction:
+$$ \text{Logit}_{\text{real}} = \text{Logit}_{\text{model}} - \log(\alpha) $$
+
+**3. Task-Specific Construction**
+We recommend constructing different training mixtures for different deployment goals:
+*   **For Retrieval (Recall)**: Use a **High-Positive Ratio** (e.g., 1:1 or 1:2). We want the model to be an "optimist," fluent in generating valid item sequences. We only need enough negatives to teach it what *not* to recommend, not to estimate precise CTR.
+*   **For Ranking (Precision)**: Use a **Realistic/Hard-Negative Ratio** (e.g., 1:10). Here, the goal is discrimination. The generative capability is secondary; we prioritize the model's ability to distinguish a `[CLICK]` from a `[SKIP]` given a specific item.
