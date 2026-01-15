@@ -682,10 +682,18 @@ To ensure this "Structure" exists, we rigorously monitor three geometric indicat
     *   *Requirement*: The variance of the nearest-neighbor count must be low, ensuring all tokens in the vocabulary are actively utilized.
 
 #### 4.2.3 Solution: Producing "Quantizable" Embeddings
-To generate embeddings suitable for tokenization, we employ a strict training protocol before quantization:
-*   **Contrastive Learning Config**: Use a large Batch Size (4096+) to ensure sufficient negatives for isotropy.
-*   **Optimization**: Calibrate `Temperature` ($\tau$) to balance uniformity and alignment.
-*   **Result**: A mathematically healthy embedding space that serves as a robust foundation for the discrete codebook.
+
+*Note: The optimization of embedding geometry for quantization is a vast research field. Here, we outline the critical protocols specific to our architecture.*
+
+**Part A: Pre-training Config (Creating the Fractal Manifold)**
+To generate embeddings that satisfy the "Global Isotropy, Local Structure" requirement, we employ a strict contrastive learning protocol:
+*   **Large Batch Size (4096+)**: Essential for Global Isotropy. Small batches provide insufficient negative samples to "push" embeddings to fill the sphere, resulting in collapse.
+*   **Temperature Scaling ($\tau$)**: Controls Local Structure. A lower $\tau$ creates sharper, tighter clusters (good for structure), while a higher $\tau$ encourages uniformity. We treat $\tau$ as a hyperparameter to tune the "Fractal Dimension" of the manifold.
+
+**Part B: Quantization Strategy (The Tangent Trick)**
+Standard Euclidean residual ($r = x - c$) is geometrically flawed for spherical embeddings, as the chordal difference falls *inside* the sphere, losing the angular properties.
+*   **Geometric Optimization**: We perform quantization in the **Tangent Space** or utilize **Spherical KMeans (Cosine Distance)**.
+*   **Mechanism**: Instead of minimizing $\| x - \sum c_i \|^2$, we maximize the cosine similarity $\cos(x, \sum c_i)$. This ensures that every layer of the residual codebook operates on directional alignment rather than magnitude, preserving the semantic consistency of the retrieval space.
 
 ### 4.3 The Architecture: Generative Action Transformer
 
