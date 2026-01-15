@@ -827,23 +827,43 @@ $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_
     *   **Role**: Each item $I_t$ is unfolded into a sub-sequence of tokens $[c_{t,1}, c_{t,2}, c_{t,3}]$.
     *   **Embeddings**: These tokens are mapped to dense vectors using a **newly learned embedding table** (separate from the pre-trained centroids). This allows the Transformer to learn optimal representations for sequence modeling from scratch, unconstrained by the frozen geometry of the quantization codebook.
 
-#### 4.3.3 Training Objectives
+#### 4.3.3 Theoretical Foundation: The Generator is a Policy
 
-The model is trained end-to-end using a standard causal language modeling objective.
+At first glance, predicting the next item code $P(c_t \mid H_t)$ seems like a standard classification task. However, from a First Principles perspective, we are building a decision-making agent.
+*   **The Agent**: The Transformer model.
+*   **The Action**: Generating an item code (Recommendation).
+*   **The Environment**: The User.
+*   **The Reward**: The User's Feedback (Click/Skip).
 
-**Total Loss Function**
+Thus, the problem is inherently a **Reinforcement Learning** problem. We aim to maximize the expected reward $J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau)]$.
 
-$$ \mathcal{L}_{\text{Total}} = \mathcal{L}_{\text{CLM}} $$
+#### 4.3.4 Mathematical Alignment: The "Supervised" Shortcut
 
-Since Action Tokens and Item Code Tokens are all part of the same flattened vocabulary, we train using a unified **Next Token Prediction** loss:
+If we employ the standard **REINFORCE (Policy Gradient)** algorithm, the gradient update rule is:
+$$ \nabla_\theta J(\theta) \approx \sum_{t} R_t \cdot \nabla_\theta \log \pi_\theta(a_t \mid s_t) $$
 
-$$ \mathcal{L}_{CLM} = - \sum_{j} \log P(x_j \mid x_{<j}) $$
+**Case 1: The Positive Interaction (Click)**
+If the user clicks, we assign a reward $R=1$. The gradient becomes:
+$$ \nabla \text{PG}_{pos} = 1 \cdot \nabla \log \pi(a_{click}) $$
+Compare this to the gradient of the standard **Negative Log-Likelihood (NLL)** used in supervised training:
+$$ \mathcal{L}_{NLL} = - \log \pi(a_{target}) \implies \nabla \mathcal{L}_{NLL} = - \nabla \log \pi(a_{target}) $$
+**Observation**: Maximizing the RL Reward ($+ \nabla \log \pi$) is mathematically identical to Minimizing the NLL Loss ($- \nabla \log \pi$).
+*Conclusion*: For positive samples, Supervised Learning is not an approximation; it is an **exact implementation** of Policy Gradient.
 
-*   **Action Prediction**: When $x_j$ is an Action Token, the model learns to predict user preference (Discriminative).
-*   **Item Code Prediction**: When $x_j$ is an Item Code Token, the model learns to generate the next item in the hierarchy (Generative).
-    *   Predict $c_1$ given History + Action.
-    *   Predict $c_2$ given History + Action + $c_1$.
-    *   Predict $c_3$ given History + Action + $c_1 + c_2$.
+**Case 2: The Negative Interaction (Skip)**
+If the user skips, we assign a reward $R=-1$. The RL gradient aims to push the probability down:
+$$ \nabla \text{PG}_{neg} = -1 \cdot \nabla \log \pi(a_{skip}) = - \frac{1}{\pi(a_{skip})} \nabla \pi(a_{skip}) $$
+**The Instability Trap**: As the model gets better, $\pi(a_{skip}) \to 0$. The term $\frac{1}{\pi}$ approaches infinity, causing **Gradient Explosion**. Standard RL is notoriously unstable on negatives for this reason.
+
+**The Solution: Gradient Substitution (The STE Trick)**
+Instead of using the unstable RL gradient for negatives, we substitute it with the gradient derived from the **Binary Cross Entropy (BCE)** loss for the negative class ($1 - \pi$):
+$$ \mathcal{L}_{BCE\_Neg} = - \log(1 - \pi(a_{skip})) $$
+This gradient is bounded and numerically stable.
+
+**Final Objective Formulation**
+We arrive at the conclusion that the standard **Next Token Prediction (CLM)** loss functions as a **Numerically Stable Proxy** for the underlying RL objective. It allows us to train a Policy Network using the robust optimization landscape of Supervised Learning.
+
+$$ \mathcal{L}_{Total} = \mathcal{L}_{CLM} \quad (\text{serving as } \mathcal{L}_{Stable-RL}) $$
 
 #### 4.3.4 Inference Process (The Generative Flow)
 
