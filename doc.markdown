@@ -701,10 +701,93 @@ The core issue with standard Euclidean residual ($r = x - c$) on spherical data 
 
 ### 4.3 The Architecture: Generative Action Transformer
 
-We introduce the "Action Token" paradigm, treating user actions (Click, Cart, etc.) as first-class citizens in the sequence, allowing the model to simultaneously learn ranking alignment and next-item generation.
+We now assemble the components developed in previous sections into a unified generative architecture.
+*   **The Context (Chapter 3)**: The User Q-Former provides the stable, long-term system prompt.
+*   **The Input (Section 4.1)**: Contextualized Residuals provide rich, personalized representations of history items.
+*   **The Vocabulary (Section 4.2)**: RQ-KMeans provides the discrete token space for sharp generation.
 
-To be populated.
-(Details on interleaving Action Tokens, the dual training objectives, and how this achieves the "Action Alignment" North Star).
+This section details the **Generative Action Transformer**, a decoder-only architecture that models user behavior as a causal sequence of actions and items.
+
+#### 4.3.1 High-Level Architecture
+
+The model follows a "Prompt-to-Generation" paradigm. The stable user profile acts as the "System Prompt," conditioning the generation of the dynamic sequence.
+
+```mermaid
+graph TB
+    %% ============ Styles ============
+    classDef context_block fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef seq_block fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef transformer_block fill:#f3e5f5,stroke:#4a148c,stroke-width:3px;
+    classDef output_head fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef flow_arrow stroke-width:2px,stroke:#333;
+
+    %% ============ 1. THE CONTEXT (From Ch.3) ============
+    subgraph Context ["1. System Prompt (The 'Stable' User)"]
+        direction TB
+        UserQ["User Q-Former Tokens<br/>(from Chapter 3)<br/>M=32 Fixed Vectors"]:::context_block
+    end
+
+    %% ============ 2. THE INPUT SEQUENCE (From Ch.4.1) ============
+    subgraph Input_Stream ["2. Dynamic History Sequence"]
+        direction LR
+        Hist_Action["Action Token<br/>(Click)"]:::seq_block
+        Hist_Item["Item Embeddings<br/>(Contextualized via Ch 4.1)"]:::seq_block
+        Pos_Emb["Position Embeddings"]:::seq_block
+    end
+
+    %% ============ 3. THE BRAIN (The Generator) ============
+    subgraph Transformer ["3. Generative Action Transformer"]
+        direction TB
+        Concat_Layer["Sequence Concatenation<br/>[User_Q, Act_1, Item_1, Act_2...]"]:::transformer_block
+        Decoder_Layers["Nx Transformer Decoder Block<br/>(Causal Masking)"]:::transformer_block
+    end
+
+    %% ============ 4. THE OUTPUT (From Ch.4.2) ============
+    subgraph Predictions ["4. Next Token Prediction"]
+        direction TB
+        Head_Action["Action Head<br/>(Predict: Click/Skip?)"]:::output_head
+        Head_Item["Item Head (RQ-Codebook)<br/>(Predict: Code 1 -> Code 2 -> ...)"]:::output_head
+    end
+
+    %% ============ Connections ============
+    UserQ --> Concat_Layer
+    Hist_Action --> Concat_Layer
+    Hist_Item --> Concat_Layer
+    Pos_Emb --> Concat_Layer
+    
+    Concat_Layer --> Decoder_Layers
+    Decoder_Layers --> Head_Action
+    Decoder_Layers -- "Conditioned on Action" --> Head_Item
+
+    %% ============ Annotations ============
+    note_vocab["Vocabulary defined by<br/>RQ-KMeans (Ch 4.2)"]
+    Head_Item -.-> note_vocab
+```
+
+#### 4.3.2 Sequence Construction: The "Sentence" of Behavior
+
+Standard sequential models treat user history as a simple bag of items: `[Item_1, Item_2, Item_3]`. This fails to capture **Action Alignment** (Section 1.3)—treating a "Skip" the same as a "Click."
+
+We restructure the input as an **Interleaved Action-Item Sequence**, effectively treating user behavior as a sentence where verbs (Actions) and nouns (Items) are equally important.
+
+**The Input Protocol**
+The input $X$ to the Transformer is constructed as:
+
+$$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_1, A_2, I_2, \dots, A_t, I_t}_{\text{Dynamic History}}] $$
+
+1.  **System Prompt (The Anchor)**:
+    *   **Source**: The $M$ tokens from the **Static Q-Former (Chapter 3)**.
+    *   **Role**: Provides the stable, long-term context (e.g., "User likes Hiking"). These tokens are **frozen** or fine-tuned with a low learning rate. They act as the "Prefix" for generation.
+
+2.  **Action Tokens (The Intent)**:
+    *   **Source**: A small learnable vocabulary: `{ [CLICK], [CART], [BUY], [SKIP], [VIEW] }`.
+    *   **Role**: Explicitly signals the *quality* of the interaction.
+    *   *Why*: This allows the model to learn the difference between "User *clicked* X" vs "User *skipped* X". During inference, we can force the model to generate only items associated with `[CLICK]` or `[BUY]`, directly optimizing for CVR.
+
+3.  **Item Embeddings (The Content)**:
+    *   **Source**: The **Contextualized Item Embeddings** ($E_{final}$) from **Section 4.1**.
+    *   **Role**: Unlike standard LLMs that use discrete input tokens, we use the rich, continuous representations modulated by the user gate. This allows the Transformer to "see" the personalized version of the item (e.g., "This shoe is a *Running* shoe for this user").
+    *   *Note*: While the *Input* is continuous (for richness), the *Target* is discrete (for sharpness).
 
 ### 4.4 Inference: Controllable Generation
 
