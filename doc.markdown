@@ -742,58 +742,66 @@ Let the interleaved user history at step $t$ be defined as $H_t = [I_0, A_0, I_1
 
 #### 4.3.2 High-Level Architecture
 
+The **Generative Action Transformer** unifies the disparate components discussed so far into a single coherent engine. It utilizes the **Static User Profile** (Ch 3) as a stable anchor, processes a dynamic history of **Contextualized Item Embeddings** (Ch 4.1) and **Action Tokens** (Ch 4.3.1), and outputs a sequence of discrete **Item Codes** (Ch 4.2), effectively translating user intent into the "language" of the product catalog.
+
 The model follows a "Prompt-to-Generation" paradigm. The stable user profile acts as the "System Prompt," conditioning the generation of the dynamic sequence.
 
 ```mermaid
 graph TB
     %% ============ Styles ============
     classDef context_block fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef projector_block fill:#ffe0b2,stroke:#f57c00,stroke-width:2px;
     classDef seq_block fill:#fff3e0,stroke:#e65100,stroke-width:2px;
     classDef transformer_block fill:#f3e5f5,stroke:#4a148c,stroke-width:3px;
     classDef output_head fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-    classDef flow_arrow stroke-width:2px,stroke:#333;
+    classDef ghost fill:none,stroke:none;
 
-    %% ============ 1. THE CONTEXT (From Ch.3) ============
-    subgraph Context ["1. System Prompt (The 'Stable' User)"]
+    %% ============ 1. THE CONTEXT ============
+    subgraph Context ["1. System Prompt"]
         direction TB
-        UserQ["User Q-Former Tokens<br/>(from Chapter 3)<br/>M=32 Fixed Vectors"]:::context_block
+        UserQ["User Q-Former Tokens<br/>(M=32)"]:::context_block
+        Projector["Adapter / Projector<br/>(Dimension Match)"]:::projector_block
+        
+        UserQ --> Projector
     end
 
-    %% ============ 2. THE INPUT SEQUENCE (From Ch.4.1) ============
-    subgraph Input_Stream ["2. Dynamic History Sequence"]
+    %% ============ 2. THE INPUT SEQUENCE ============
+    subgraph Input_Stream ["2. Dynamic History"]
         direction LR
-        Hist_Action["Action Token<br/>(Click)"]:::seq_block
-        Hist_Item["Item Embeddings<br/>(Contextualized via Ch 4.1)"]:::seq_block
-        Pos_Emb["Position Embeddings"]:::seq_block
+        I1["Item 1<br/>(3 Tokens)"]:::seq_block
+        A1["Action 1<br/>(Click)"]:::seq_block
+        Dots["..."]:::ghost
+        IT["Item T<br/>(3 Tokens)"]:::seq_block
+        AT["Action T<br/>(Click)"]:::seq_block
+        
+        I1 --> A1 --> Dots --> IT --> AT
     end
 
-    %% ============ 3. THE BRAIN (The Generator) ============
+    %% ============ 3. THE BRAIN ============
     subgraph Transformer ["3. Generative Action Transformer"]
         direction TB
-        Concat_Layer["Sequence Concatenation<br/>[User_Q, Act_1, Item_1, Act_2...]"]:::transformer_block
-        Decoder_Layers["Nx Transformer Decoder Block<br/>(Causal Masking)"]:::transformer_block
+        Concat_Layer["Sequence Concatenation<br/>[User_Prompt, History]"]:::transformer_block
+        Decoder_Layers["Nx Transformer Decoder Block<br/>(Rotary Pos Emb Internal)"]:::transformer_block
     end
 
-    %% ============ 4. THE OUTPUT (From Ch.4.2) ============
+    %% ============ 4. OUTPUT ============
     subgraph Predictions ["4. Next Token Prediction"]
         direction TB
-        Head_Action["Action Head<br/>(Predict: Click/Skip?)"]:::output_head
-        Head_Item["Item Head (RQ-Codebook)<br/>(Predict: Code 1 -> Code 2 -> ...)"]:::output_head
+        Head_Action["Action Head"]:::output_head
+        Head_Item["Item Head<br/>(3 Parallel Codes)"]:::output_head
     end
 
     %% ============ Connections ============
-    UserQ --> Concat_Layer
-    Hist_Action --> Concat_Layer
-    Hist_Item --> Concat_Layer
-    Pos_Emb --> Concat_Layer
+    Projector --> Concat_Layer
+    AT --> Concat_Layer
     
     Concat_Layer --> Decoder_Layers
     Decoder_Layers --> Head_Action
-    Decoder_Layers -- "Conditioned on Action" --> Head_Item
+    Decoder_Layers --> Head_Item
 
     %% ============ Annotations ============
-    note_vocab["Vocabulary defined by<br/>RQ-KMeans (Ch 4.2)"]
-    Head_Item -.-> note_vocab
+    note_proj["Feature Projection<br/>needed to align dimensions"]
+    Projector -.-> note_proj
 ```
 
 #### 4.3.2 Sequence Construction: The "Sentence" of Behavior
