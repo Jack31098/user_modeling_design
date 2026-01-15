@@ -4,6 +4,18 @@
 > **Date**: 01/12/2025  
 > **GitHub**: [https://github.com/Jack31098](https://github.com/Jack31098)
 
+## Executive Summary: The Evolutionary Roadmap (ROI-Focused)
+
+To balance **Architecture Innovation** with **Engineering ROI**, we propose a strict **3-Phase Evolution Strategy**. We do **not** propose a "Big Bang" replacement. Each phase delivers immediate business value and funds the next.
+
+| Phase | Goal (ROI) | Architecture Change | Engineering Cost | Risk |
+| :--- | :--- | :--- | :--- | :--- |
+| **Phase 1: The Quick Win (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Low. Drop-in replacement for current User Embedding. | Low |
+| **Phase 2: The Specialist** | **Fix the Long-Tail**. Boost engagement for niche/inactive users who currently get generic recs. | **Deploy CRBR Head** (Ch 3.3). Conditional routing for diverse user groups. | Medium. Requires updating Serving Logic to support multi-vector. | Medium |
+| **Phase 3: The Moonshot** | **Fix the Action Gap**. Break the ceiling of CTR/CVR by modeling "Click" vs "Skip" explicitly. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High  | High |
+
+---
+
 ## 1. Background: The Four Critical Flaws of Standard Sequential Models
 
 **(Critique of Pinformer Architecture)**
@@ -1083,6 +1095,8 @@ The **Control Prompts** effectively reshape the probability distribution $P(\tex
 *   **Application**: Category pages, Search result re-ranking.
 
 ## 5. Future Directions: End-to-End Latent Tokenization
+
+> *Note: This chapter is a theoretical exploration intended to inspire new ways of thinking about the "Indexability vs. Expressiveness" trade-off. Due to the "Three Death Traps" (Section 5.3) and massive engineering complexity, this architecture is NOT currently feasible for production. It serves primarily as a conceptual framework to highlight the limitations of current two-stage paradigms.*
 
 While Chapter 4 presented a robust, industry-proven solution using RQ-KMeans, it inherently suffers from a **"Two-Stage Gap"**: the Item Tokenizer is trained on geometric similarity (Euclidean distance), while the Retrieval Transformer is trained on semantic preference (Next Item Prediction). Geometric closeness does not always imply semantic substitutability.
 
