@@ -1110,7 +1110,9 @@ This forces $q_2$ and $q_3$ to learn *only* what previous layers missed.
 
 **2. "Strictly Better" Constraint (Progressive Margin Loss)**
 We add a ranking loss to ensure that adding a layer *always* improves prediction accuracy.
+
 $$ \mathcal{L}_{margin} = \sum_{k=1}^{2} \max(0, \mathcal{L}(H_{k+1}, y) - \mathcal{L}(H_k, y) + \delta) $$
+
 This penalizes the model if deeper layers (which consume more compute/tokens) do not provide a tangible gain ($\delta$) over shallower layers.
 
 **3. Capacity & Orthogonality Constraints**
