@@ -712,7 +712,7 @@ We introduce the **Generative Action Transformer**, which fundamentally alters t
 
 The core innovation is to treat the User Action (e.g., `[CLICK]`, `[CART]`, `[SKIP]`) as a first-class token in the vocabulary, distinct from the Item itself. This seemingly simple change unlocks three powerful capabilities by decomposing the joint probability distribution.
 
-Let the sequence of interactions up to time $t$ be pairs of $(I_k, A_k)$.
+Let the interleaved user history at step $t$ be defined as $H_t = [I_0, A_0, I_1, A_1, \dots, I_{t-1}, A_{t-1}]$.
 
 **1. Discriminative Capability (Ranking Power)**
 *   **Formula**: $P(A_t \mid H_t, I_t)$
@@ -720,9 +720,10 @@ Let the sequence of interactions up to time $t$ be pairs of $(I_k, A_k)$.
 *   **Why it matters**: This allows the generative model to learn from **Negative Feedback**. A "Skip" is no longer just "not present in data"—it is an explicit training signal. The model learns *why* a user might reject an item, granting it the precision of a discriminator.
 
 **2. Generative Capability (Retrieval Power)**
-*   **Formula**: $P(I_t \mid H_t)$
-*   **Mechanism**: Given a history $H_t$ and a *target action* (e.g., $A_t=$ `[CLICK]`), the model generates the most likely item $I_t$ to trigger that action.
-*   **Why it matters**: This aligns retrieval with business goals. We don't just want "semantically similar items"; we want "items the user will click."
+*   **Formula**: $P(I_t, A_t \mid H_t)$
+*   **Mechanism**: The model learns the joint distribution of the next interaction pair. For retrieval, we specifically target the conditional probability $P(I_t \mid H_t, A_t=\text{[CLICK]})$.
+*   **Why it matters**: This aligns retrieval with business goals. We effectively filter the generative beam to focus only on items that lead to positive outcomes.
+*   **Engineering Note**: For high-performance serving, we can **distill** this conditional distribution into a lightweight Policy Network or Sampler Head, avoiding the full autoregressive cost during candidate generation.
 
 **3. Controllable Capability (Steering Power)**
 *   **Formula**: $P(I_{target} \mid H_t, I_{seed}, A_{positive})$
