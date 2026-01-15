@@ -830,6 +830,7 @@ $$ X = [\underbrace{q_1, \dots, q_M}_{\text{System Prompt}}, \underbrace{A_1, I_
 The model is trained end-to-end using a standard causal language modeling objective.
 
 **Total Loss Function**
+
 $$ \mathcal{L}_{\text{Total}} = \mathcal{L}_{\text{CLM}} $$
 
 Since Action Tokens and Item Code Tokens are all part of the same flattened vocabulary, we train using a unified **Next Token Prediction** loss:
