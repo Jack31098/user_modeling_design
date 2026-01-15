@@ -7,7 +7,8 @@
 > **About This Document**
 > This document serves as both a **System Architecture Specification** and a **Conceptual Exploration**. It aims to bridge the gap between current industrial baselines and future generative paradigms.
 > *   **Sections 1-3** outline immediate, production-ready improvements (The "Ground").
-> *   **Sections 4-5** explore advanced, experimental concepts intended to provoke thought and inspire future R&D directions (The "Cloud").
+> *   **Section 4** details cutting-edge industry practices (e.g., Generative Retrieval) that have been validated by top-tier tech firms but require significant R&D investment (The "Horizon").
+> *   **Section 5** explores theoretical, "wild" concepts intended to provoke thought and inspire future long-term directions (The "Cloud").
 > Please read with an "Evolutionary" mindset, distinguishing between immediate engineering goals and long-term architectural vision.
 
 ## Executive Summary: The Evolutionary Roadmap
