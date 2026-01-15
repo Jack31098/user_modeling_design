@@ -873,7 +873,13 @@ $$
 \end{aligned}
 $$
 
-Expanding the trajectory probability $P(\tau \mid \theta) = P(s_0) \prod_{t} \pi_\theta(a_t \mid s_t) P(s_{t+1} \mid s_t, a_t)$, and noting that transition dynamics $P(s_{t+1} \mid \dots)$ are independent of $\theta$:
+Expanding the trajectory probability
+
+$P(\tau \mid \theta) = P(s_0) \prod_{t} \pi_\theta(a_t \mid s_t) P(s_{t+1} \mid s_t, a_t)$, 
+ 
+and noting that transition dynamics
+ 
+$P(s_{t+1} \mid \dots)$ are independent of $\theta$:
 
 $$
 \nabla_\theta \log P(\tau \mid \theta) = \sum_{t} \nabla_\theta \log \pi_\theta(a_t \mid s_t)
