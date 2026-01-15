@@ -722,10 +722,7 @@ graph LR
         T1 --> T2 --> T3
     end
 
-    %% Explanation
-    Note_Vocab["<b>Why Tokenize?</b><br>1. Finite Vocab (e.g. 10k codes vs 1B IDs)<br>2. Shared Semantics (Shoe=Shoe)<br>3. Enables GPT-style Generation"]:::vocab_note
 
-    Token_World -.-> Note_Vocab
 
     class T1,T2,T3 token_group
 ```
