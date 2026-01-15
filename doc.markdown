@@ -151,7 +151,25 @@ Unlike standard encoders that perform self-attention over the entire sequence, Q
 *   **Linear Complexity**: The computational cost is reduced to $O(N \cdot M)$, where $M \ll N$. This allows us to scale to sequence lengths of 10,000+ with minimal latency impact.
 *   **Information Bottleneck**: The $M$ query tokens act as an information bottleneck, forcing the model to distill the most relevant user interests into a compact latent representation.
 
-#### 3.1.2 Pre-training Strategy: Encoder-Decoder
+#### 3.1.2 Engineering: The Serving Strategy (How to Scale)
+
+While reducing computational complexity to $O(N \cdot M)$ is crucial, serving user histories of length $N=10,000+$ requires specific system-level optimizations beyond just model architecture.
+
+1.  **Storage (The Tiered Approach)**: We do not store full sequences in memory.
+    *   **Hot Memory (Redis)**: Stores the latest $K=100$ items for immediate, low-latency features.
+    *   **Warm Storage (BigTable/Cassandra)**: Stores the full $N=10,000$ sequence IDs.
+    *   **Embedding Fetching**: Item embeddings are fetched from a feature store only when the Q-Former is triggered (e.g., session start).
+
+2.  **Incremental Inference (State Caching)**:
+    Since user history is strictly **Append-Only**, we do not need to re-compute the Q-Former from scratch for every new click.
+    *   **Mechanism**: We cache the **Key/Value states** of the Cross-Attention layers for the existing history.
+    *   **Update**: When a new item arrives, we only compute its embedding, append it to the KV Cache, and run the Query Token attention update. This reduces the runtime complexity from $O(N \cdot M)$ to $O(1 \cdot M)$ for incremental updates.
+
+3.  **Index Consistency**:
+    *   For **Approach A (3.2)**: The aggregated user vector is updated asynchronously and pushed to the ANN index (e.g., Faiss/HNSW) with a slight delay (Near-Real-Time).
+    *   For **Approach B (3.3)**: Since CRBR relies on *static* Item Indices and *dynamic* User Routing, we only need to update the User's routing state vector, avoiding expensive ANN index rebuilds.
+
+#### 3.1.3 Pre-training Strategy: Encoder-Decoder
 
 The User Tower is pre-trained using a multi-task objective designed to ensure both discriminative power (for retrieval) and generative understanding (for profile completeness).
 
