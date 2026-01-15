@@ -903,7 +903,7 @@ $$
 This is mathematically identical to the negative gradient of the **Cross-Entropy Loss** ($\mathcal{L}_{\text{CE}} = - \log \pi$):
 
 $$
-- \nabla \mathcal{L}_{\text{CE}} = \nabla \log \pi_{\theta}(a_{\text{target}} \mid s_t)
+-\nabla \mathcal{L}_{\text{CE}} = \nabla \log \pi_{\theta}(a_{\text{target}} \mid s_t)
 $$
 
 *Conclusion*: Minimizing Cross-Entropy on positive samples is an exact proxy for maximizing Policy Gradient with reward +1.
