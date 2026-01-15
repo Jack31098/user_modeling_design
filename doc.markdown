@@ -610,11 +610,11 @@ graph TB
 
         %% Branches
         subgraph Static_Branch [Static Semantic Branch]
-            E_static[E_static<br>(Frozen Pre-trained)]:::frozen
+            E_static["E_static<br>(Frozen Pre-trained)"]:::frozen
         end
 
         subgraph Learnable_Branch [Dynamic Capacity Branch]
-            E_learnable[E_learnable<br>(Trainable Table)]:::learnable
+            E_learnable["E_learnable<br>(Trainable Table)"]:::learnable
         end
 
         %% Gating Network
