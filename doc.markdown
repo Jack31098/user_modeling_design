@@ -4,15 +4,21 @@
 > **Date**: 01/12/2025  
 > **GitHub**: [https://github.com/Jack31098](https://github.com/Jack31098)
 
-## Executive Summary: The Evolutionary Roadmap (ROI-Focused)
+> **About This Document**
+> This document serves as both a **System Architecture Specification** and a **Conceptual Exploration**. It aims to bridge the gap between current industrial baselines and future generative paradigms.
+> *   **Sections 1-3** outline immediate, production-ready improvements (The "Ground").
+> *   **Sections 4-5** explore advanced, experimental concepts intended to provoke thought and inspire future R&D directions (The "Cloud").
+> Please read with an "Evolutionary" mindset, distinguishing between immediate engineering goals and long-term architectural vision.
+
+## Executive Summary: The Evolutionary Roadmap
 
 To balance **Architecture Innovation** with **Engineering ROI**, we propose a strict **3-Phase Evolution Strategy**. We do **not** propose a "Big Bang" replacement. Each phase delivers immediate business value and funds the next.
 
 | Phase | Goal (ROI) | Architecture Change | Engineering Cost | Risk |
 | :--- | :--- | :--- | :--- | :--- |
-| **Phase 1: The Quick Win (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Low. Drop-in replacement for current User Embedding. | Low |
+| **Phase 1: The Quick Win (MVP)** | **Fix the Horizon**. Capture long-term user interests (N=1k+) to boost Recall/Retention. | **Replace User Encoder only** (Pinformer $\to$ Q-Former, Ch 3.1). Keep Item Tower & Index unchanged. | Medium. Drop-in replacement for current User Embedding. | Low |
 | **Phase 2: The Specialist** | **Fix the Long-Tail**. Boost engagement for niche/inactive users who currently get generic recs. | **Deploy CRBR Head** (Ch 3.3). Conditional routing for diverse user groups. | Medium. Requires updating Serving Logic to support multi-vector. | Medium |
-| **Phase 3: The Moonshot** | **Fix the Action Gap**. Break the ceiling of CTR/CVR by modeling "Click" vs "Skip" explicitly. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High  | High |
+| **Phase 3: The Moonshot** | **Fix the Action Gap**. Break the ceiling of CTR/CVR by modeling "Click" vs "Skip" explicitly. | **Generative Action Layer** (Ch 4). Full generative paradigm. | High. Requires iteration on item representation learning  | High |
 
 ---
 
