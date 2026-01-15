@@ -652,7 +652,13 @@ graph TB
 
 ### 4.2 The Foundation: Robust Discretization (RQ-KMeans)
 
-To unify recommendation with generative modeling, we must first map the continuous item embedding space into a discrete codebook sequence. We employ **Residual Quantization (RQ-KMeans)** to ensure the discrete tokens preserve the geometric properties of the original space.
+To unify recommendation with generative modeling, we must first answer a fundamental question: **What is the "Vocabulary" of user behavior?**
+
+*   **The Problem with Item IDs**: Standard systems treat millions of items as distinct IDs ($I_1, I_2, \dots, I_N$). This vocabulary is effectively infinite and unstructured. Predicting the next ID directly via Softmax is computationally impossible and semantically shallow (ID 101 has no relation to ID 102).
+*   **The "Language" Metaphor**: To apply modern Generative Transformers (like GPT), we must convert items into a finite, structured language.
+*   **The Ideal State**: If an item (e.g., a Red Running Shoe) could be represented as a sequence of semantic tokens (e.g., `[FOOTWEAR, SPORT, RED]`) from a fixed codebook, we could model user history as a sentence.
+
+This section details **Residual Quantization (RQ-KMeans)**, the mechanism that translates continuous item embeddings into this discrete code sequence.
 
 #### 4.2.1 Motivation: Why Residuals Are Not Enough
 While the contextualized residuals (Section 4.1) enhance capacity, they still operate in a continuous space optimized via contrastive loss (NCE). As discussed in Chapter 1, this paradigm inherently suffers from **Distributional Blurring** and **Hubness**, limiting the "Sharpness" of retrieval.
