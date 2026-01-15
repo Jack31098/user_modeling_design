@@ -701,14 +701,33 @@ The core issue with standard Euclidean residual ($r = x - c$) on spherical data 
 
 ### 4.3 The Architecture: Generative Action Transformer
 
-We now assemble the components developed in previous sections into a unified generative architecture.
-*   **The Context (Chapter 3)**: The User Q-Former provides the stable, long-term system prompt.
-*   **The Input (Section 4.1)**: Contextualized Residuals provide rich, personalized representations of history items.
-*   **The Vocabulary (Section 4.2)**: RQ-KMeans provides the discrete token space for sharp generation.
+With the Item Discretization (Ch 4.2) complete, we have transformed the continuous retrieval problem into a discrete sequence generation problem. Theoretically, we could now simply train a standard Decoder-only Transformer (like GPT) to predict the next item code: $P(\text{Item}_t \mid \text{Item}_{<t})$.
 
-This section details the **Generative Action Transformer**, a decoder-only architecture that models user behavior as a causal sequence of actions and items.
+**However, simple "Next Item Prediction" is insufficient.**
+It treats all history interactions equally (ignoring whether the user clicked, purchased, or skipped) and conflates "Semantic Similarity" with "User Preference." To fulfill our North Star principles of **Action Alignment** and **Controllability**, we must move beyond simple co-occurrence modeling.
 
-#### 4.3.1 High-Level Architecture
+We introduce the **Generative Action Transformer**, which fundamentally alters the sequence modeling paradigm by interleaving **Action Tokens** with Item Tokens.
+
+#### 4.3.1 Action Tokens: The Syntax of Intent
+
+The core innovation is to treat the User Action (e.g., `[CLICK]`, `[CART]`, `[SKIP]`) as a first-class token in the vocabulary, distinct from the Item itself. This seemingly simple change unlocks three powerful capabilities by decomposing the joint probability distribution:
+
+**1. Discriminative Capability (Ranking Power)**
+*   **Formula**: $P(\text{Action} \mid \text{History}, \text{Next Item})$
+*   **Mechanism**: Given a user's history and a potential candidate item, the model predicts the *interaction*.
+*   **Why it matters**: This allows the generative model to learn from **Negative Feedback**. A "Skip" is no longer just "not present in data"—it is an explicit training signal. The model learns *why* a user might reject an item, granting it the precision of a discriminator.
+
+**2. Generative Capability (Retrieval Power)**
+*   **Formula**: $P(\text{Next Item} \mid \text{History}, \text{Action})$
+*   **Mechanism**: Given a history and a *target action* (e.g., `[CLICK]`), the model generates the most likely item to trigger that action.
+*   **Why it matters**: This aligns retrieval with business goals. We don't just want "semantically similar items"; we want "items the user will click."
+
+**3. Controllable Capability (Steering Power)**
+*   **Formula**: $P(\text{Next Item} \mid \text{History}, \text{Virtual Seed}, \text{Positive Action})$
+*   **Mechanism**: At inference time, we can inject a "Virtual Seed" (e.g., a specific category token or a `[RE-BUY]` prompt) followed by a `[CLICK]` token.
+*   **Why it matters**: This enables **Conditional Generation**. We can steer the model to "Find me something similar to X that the user will Click," effectively turning the retrieval system into a controllable engine without retraining.
+
+#### 4.3.2 High-Level Architecture
 
 The model follows a "Prompt-to-Generation" paradigm. The stable user profile acts as the "System Prompt," conditioning the generation of the dynamic sequence.
 
