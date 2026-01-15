@@ -633,14 +633,20 @@ graph TB
 
         Concat --> MLP_Gate --> Gate_Val
 
-        %% Fusion
-        Fusion(("(1-g)*Static + g*Learnable")):::operation
-        E_final[Final Contextualized<br>Item Embedding]:::operation
-
-        E_static --> Fusion
-        E_learnable --> Fusion
-        Gate_Val -.->|Modulates| Fusion
-        Fusion --> E_final
+        %% Fusion - Explicit Steps
+        Scale_Static(("Scale: (1-g)")):::operation
+        Scale_Learnable(("Scale: g")):::operation
+        Sum_Op((("&oplus; Sum"))):::operation
+        
+        E_static --> Scale_Static
+        E_learnable --> Scale_Learnable
+        
+        Gate_Val -.->|Control| Scale_Static
+        Gate_Val -.->|Control| Scale_Learnable
+        
+        Scale_Static --> Sum_Op
+        Scale_Learnable --> Sum_Op
+        Sum_Op --> E_final
     end
 ```
 
